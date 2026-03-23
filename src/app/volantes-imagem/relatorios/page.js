@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../../components/AuthProvider';
 import MonthSelector from '../../../components/MonthSelector';
-import { loadData, getMonthKey } from '../../../lib/storage';
+import { getMonthKey } from '../../../lib/storage';
 import Link from 'next/link';
 import { FiArrowLeft } from 'react-icons/fi';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
@@ -14,7 +14,11 @@ export default function ImagemRelatoriosPage() {
   const { isAuthenticated, loading } = useAuth();
   const [monthKey, setMonthKey] = useState(getMonthKey());
   const [records, setRecords] = useState([]);
-  useEffect(() => { if (!isAuthenticated) return; setRecords(loadData('imagem', `records_${monthKey}`, [])); }, [isAuthenticated, monthKey]);
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    fetch(`/api/records?module=imagem&month=${monthKey}`)
+      .then(r => r.json()).then(setRecords).catch(() => {});
+  }, [isAuthenticated, monthKey]);
   if (loading || !isAuthenticated) return null;
   const formatCurrency = (val) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const total = records.reduce((s, r) => s + r.valor, 0);
@@ -29,9 +33,9 @@ export default function ImagemRelatoriosPage() {
 
   return (
     <>
-      <div className="page-header"><div className="page-header-row"><div><Link href="/volantes-imagem" style={{ color: 'var(--primary-light)', textDecoration: 'none', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}><FiArrowLeft size={14} /> Voltar</Link><h1 className="page-title">Relatórios - Volantes Exames de Imagem</h1></div><MonthSelector value={monthKey} onChange={setMonthKey} /></div></div>
+      <div className="page-header"><div className="page-header-row"><div><Link href="/volantes-imagem" style={{ color: 'var(--primary-light)', textDecoration: 'none', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}><FiArrowLeft size={14} /> Voltar</Link><h1 className="page-title">Relat\u00f3rios - Volantes Exames de Imagem</h1></div><MonthSelector value={monthKey} onChange={setMonthKey} /></div></div>
       <div className="card-grid"><div className="stat-card"><span className="stat-label">Total de Exames</span><span className="stat-value">{records.length}</span></div><div className="stat-card"><span className="stat-label">Total Pago</span><span className="stat-value">{formatCurrency(total)}</span></div><div className="stat-card"><span className="stat-label">Profissionais Ativos</span><span className="stat-value">{Object.keys(profTotals).length}</span></div></div>
-      {records.length === 0 ? (<div className="card" style={{ marginTop: '24px' }}><div className="no-data">Nenhum dado disponível</div></div>) : (<div className="charts-grid"><div className="chart-card"><h3>Distribuição por Tipo de Exame</h3><div className="chart-container"><Pie data={pieData} options={pieOptions} /></div></div><div className="chart-card"><h3>Ranking de Profissionais</h3><div className="chart-container"><Bar data={barData} options={chartOptions} /></div></div><div className="chart-card" style={{ gridColumn: '1 / -1' }}><h3>Detalhamento</h3><div className="table-wrapper"><table><thead><tr><th>Profissional</th><th>Exames</th><th>Total Pago</th></tr></thead><tbody>{sortedProfs.map(([name, value]) => (<tr key={name}><td>{name}</td><td>{records.filter(r => r.nome === name).length}</td><td>{formatCurrency(value)}</td></tr>))}</tbody></table></div></div></div>)}
+      {records.length === 0 ? (<div className="card" style={{ marginTop: '24px' }}><div className="no-data">Nenhum dado dispon\u00edvel</div></div>) : (<div className="charts-grid"><div className="chart-card"><h3>Distribui\u00e7\u00e3o por Tipo de Exame</h3><div className="chart-container"><Pie data={pieData} options={pieOptions} /></div></div><div className="chart-card"><h3>Ranking de Profissionais</h3><div className="chart-container"><Bar data={barData} options={chartOptions} /></div></div><div className="chart-card" style={{ gridColumn: '1 / -1' }}><h3>Detalhamento</h3><div className="table-wrapper"><table><thead><tr><th>Profissional</th><th>Exames</th><th>Total Pago</th></tr></thead><tbody>{sortedProfs.map(([name, value]) => (<tr key={name}><td>{name}</td><td>{records.filter(r => r.nome === name).length}</td><td>{formatCurrency(value)}</td></tr>))}</tbody></table></div></div></div>)}
     </>
   );
 }

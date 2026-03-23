@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../../components/AuthProvider';
 import MonthSelector from '../../../components/MonthSelector';
-import { loadData, getMonthKey } from '../../../lib/storage';
+import { getMonthKey } from '../../../lib/storage';
 import Link from 'next/link';
 import { FiArrowLeft } from 'react-icons/fi';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
@@ -14,7 +14,11 @@ export default function CirurgioesRelatoriosPage() {
   const { isAuthenticated, loading } = useAuth();
   const [monthKey, setMonthKey] = useState(getMonthKey());
   const [records, setRecords] = useState([]);
-  useEffect(() => { if (!isAuthenticated) return; setRecords(loadData('cirurgioes', `records_${monthKey}`, [])); }, [isAuthenticated, monthKey]);
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    fetch(`/api/records?module=cirurgioes&month=${monthKey}`)
+      .then(r => r.json()).then(setRecords).catch(() => {});
+  }, [isAuthenticated, monthKey]);
   if (loading || !isAuthenticated) return null;
   const formatCurrency = (val) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const total = records.reduce((s, r) => s + r.valor, 0);
@@ -29,9 +33,9 @@ export default function CirurgioesRelatoriosPage() {
 
   return (
     <>
-      <div className="page-header"><div className="page-header-row"><div><Link href="/volantes-cirurgioes" style={{ color: 'var(--primary-light)', textDecoration: 'none', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}><FiArrowLeft size={14} /> Voltar</Link><h1 className="page-title">Relatórios - Volantes Cirurgiões</h1></div><MonthSelector value={monthKey} onChange={setMonthKey} /></div></div>
-      <div className="card-grid"><div className="stat-card"><span className="stat-label">Total de Procedimentos</span><span className="stat-value">{records.length}</span></div><div className="stat-card"><span className="stat-label">Total Pago</span><span className="stat-value">{formatCurrency(total)}</span></div><div className="stat-card"><span className="stat-label">Cirurgiões Ativos</span><span className="stat-value">{Object.keys(cirurgiaoTotals).length}</span></div></div>
-      {records.length === 0 ? (<div className="card" style={{ marginTop: '24px' }}><div className="no-data">Nenhum dado disponível</div></div>) : (<div className="charts-grid"><div className="chart-card"><h3>Ranking de Cirurgiões por Valor</h3><div className="chart-container"><Bar data={barData} options={chartOptions} /></div></div><div className="chart-card"><h3>Procedimentos Mais Frequentes</h3><div className="chart-container"><Pie data={pieData} options={pieOptions} /></div></div><div className="chart-card" style={{ gridColumn: '1 / -1' }}><h3>Detalhamento por Cirurgião</h3><div className="table-wrapper"><table><thead><tr><th>Cirurgião</th><th>Procedimentos</th><th>Total Pago</th></tr></thead><tbody>{sortedCirurgioes.map(([name, value]) => (<tr key={name}><td>{name}</td><td>{records.filter(r => r.nome === name).length}</td><td>{formatCurrency(value)}</td></tr>))}</tbody></table></div></div></div>)}
+      <div className="page-header"><div className="page-header-row"><div><Link href="/volantes-cirurgioes" style={{ color: 'var(--primary-light)', textDecoration: 'none', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}><FiArrowLeft size={14} /> Voltar</Link><h1 className="page-title">Relat\u00f3rios - Volantes Cirurgi\u00f5es</h1></div><MonthSelector value={monthKey} onChange={setMonthKey} /></div></div>
+      <div className="card-grid"><div className="stat-card"><span className="stat-label">Total de Procedimentos</span><span className="stat-value">{records.length}</span></div><div className="stat-card"><span className="stat-label">Total Pago</span><span className="stat-value">{formatCurrency(total)}</span></div><div className="stat-card"><span className="stat-label">Cirurgi\u00f5es Ativos</span><span className="stat-value">{Object.keys(cirurgiaoTotals).length}</span></div></div>
+      {records.length === 0 ? (<div className="card" style={{ marginTop: '24px' }}><div className="no-data">Nenhum dado dispon\u00edvel</div></div>) : (<div className="charts-grid"><div className="chart-card"><h3>Ranking de Cirurgi\u00f5es por Valor</h3><div className="chart-container"><Bar data={barData} options={chartOptions} /></div></div><div className="chart-card"><h3>Procedimentos Mais Frequentes</h3><div className="chart-container"><Pie data={pieData} options={pieOptions} /></div></div><div className="chart-card" style={{ gridColumn: '1 / -1' }}><h3>Detalhamento por Cirurgi\u00e3o</h3><div className="table-wrapper"><table><thead><tr><th>Cirurgi\u00e3o</th><th>Procedimentos</th><th>Total Pago</th></tr></thead><tbody>{sortedCirurgioes.map(([name, value]) => (<tr key={name}><td>{name}</td><td>{records.filter(r => r.nome === name).length}</td><td>{formatCurrency(value)}</td></tr>))}</tbody></table></div></div></div>)}
     </>
   );
 }

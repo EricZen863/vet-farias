@@ -10,21 +10,25 @@ export default function ConfiguracoesPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [status, setStatus] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   if (loading || !isAuthenticated) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus(null);
     if (!currentPassword) { setStatus({ type: 'error', message: 'Digite sua senha atual' }); return; }
     if (!newUsername && !newPassword) { setStatus({ type: 'error', message: 'Preencha pelo menos o novo usu\u00e1rio ou nova senha' }); return; }
     if (newPassword && newPassword !== confirmPassword) { setStatus({ type: 'error', message: 'As senhas n\u00e3o conferem' }); return; }
 
-    const saved = localStorage.getItem('vetfarias_credentials');
-    let currentUsername = 'admin';
-    if (saved) { try { currentUsername = JSON.parse(saved).username; } catch {} }
+    setSaving(true);
+    const result = await changeCredentials(
+      currentPassword,
+      newUsername || undefined,
+      newPassword || currentPassword
+    );
+    setSaving(false);
 
-    const result = changeCredentials(currentPassword, newUsername || currentUsername, newPassword || currentPassword);
     if (result.success) {
       setStatus({ type: 'success', message: 'Credenciais atualizadas com sucesso!' });
       setCurrentPassword(''); setNewUsername(''); setNewPassword(''); setConfirmPassword('');
@@ -39,7 +43,6 @@ export default function ConfiguracoesPage() {
         <h1 className="page-title">Configura\u00e7\u00f5es</h1>
         <p className="page-subtitle">Gerencie suas credenciais de acesso</p>
       </div>
-
       <div className="card" style={{ maxWidth: '520px' }}>
         <h2 className="card-title"><FiLock size={18} /> Alterar Login e Senha</h2>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -78,10 +81,12 @@ export default function ConfiguracoesPage() {
               {status.message}
             </div>
           )}
-          <button type="submit" className="btn-primary" style={{ marginTop: '4px' }}>Salvar Altera\u00e7\u00f5es</button>
+          <button type="submit" className="btn-primary" style={{ marginTop: '4px' }} disabled={saving}>
+            {saving ? 'Salvando...' : 'Salvar Altera\u00e7\u00f5es'}
+          </button>
         </form>
         <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '20px', lineHeight: '1.6' }}>
-          \ud83d\udca1 As credenciais padr\u00e3o s\u00e3o <strong>admin / vetfarias2024</strong>. Caso esque\u00e7a suas credenciais alteradas, limpe os dados do navegador para restaurar o padr\u00e3o.
+          \ud83d\udca1 As credenciais padr\u00e3o s\u00e3o <strong>admin / vetfarias2024</strong>. Caso esque\u00e7a suas credenciais alteradas, entre em contato com o administrador do sistema.
         </p>
       </div>
     </>

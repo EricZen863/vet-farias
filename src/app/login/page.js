@@ -7,31 +7,35 @@ export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login, isAuthenticated } = useAuth();
 
   if (isAuthenticated) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!login(username, password)) {
-      setError('Usuário ou senha inválidos');
+    setLoading(true);
+    const success = await login(username, password);
+    if (!success) {
+      setError('Usu\u00e1rio ou senha inv\u00e1lidos');
     }
+    setLoading(false);
   };
 
   return (
     <div className="login-page" style={{ marginLeft: 'calc(var(--sidebar-width) * -1)' }}>
       <div className="login-card">
         <div className="login-logo">
-          <span className="logo-icon">🐾</span>
+          <span className="logo-icon">\ud83d\udc3e</span>
           <h1>Vet Farias</h1>
-          <p>Sistema de Gestão Interna</p>
+          <p>Sistema de Gest\u00e3o Interna</p>
         </div>
         <form className="login-form" onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">Usuário</label>
+            <label className="form-label">Usu\u00e1rio</label>
             <div style={{ position: 'relative' }}>
-              <input type="text" className="form-input" placeholder="Digite seu usuário" value={username} onChange={(e) => setUsername(e.target.value)} style={{ paddingLeft: '40px' }} />
+              <input type="text" className="form-input" placeholder="Digite seu usu\u00e1rio" value={username} onChange={(e) => setUsername(e.target.value)} style={{ paddingLeft: '40px' }} />
               <FiUser style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
             </div>
           </div>
@@ -43,7 +47,9 @@ export default function LoginPage() {
             </div>
           </div>
           {error && <div className="login-error">{error}</div>}
-          <button type="submit" className="btn-primary" style={{ marginTop: '8px' }}>Entrar</button>
+          <button type="submit" className="btn-primary" style={{ marginTop: '8px' }} disabled={loading}>
+            {loading ? 'Entrando...' : 'Entrar'}
+          </button>
         </form>
       </div>
     </div>

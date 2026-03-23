@@ -26,10 +26,7 @@ npm install
 npm run dev
 ```
 
-## Credenciais
 
-- **Usuário:** admin
-- **Senha:** vetfarias2024
 
 ## Deploy
 

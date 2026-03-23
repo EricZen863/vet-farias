@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 export function getMonthKey(date = new Date()) {
   const y = date.getFullYear();
@@ -9,7 +9,7 @@ export function getMonthKey(date = new Date()) {
 export function getMonthLabel(monthKey) {
   const [year, month] = monthKey.split('-');
   const months = [
-    'Janeiro', 'Fevereiro', 'Mar\u00e7o', 'Abril', 'Maio', 'Junho',
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
   ];
   return `${months[parseInt(month) - 1]} ${year}`;

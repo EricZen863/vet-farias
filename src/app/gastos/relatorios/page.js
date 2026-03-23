@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../../components/AuthProvider';
 import MonthSelector from '../../../components/MonthSelector';
@@ -38,9 +38,9 @@ export default function GastosRelatoriosPage() {
 
   return (
     <>
-      <div className="page-header"><div className="page-header-row"><div><Link href="/gastos" style={{ color: 'var(--primary-light)', textDecoration: 'none', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}><FiArrowLeft size={14} /> Voltar</Link><h1 className="page-title">Relat\u00f3rios - Gastos Diversos</h1></div><MonthSelector value={monthKey} onChange={setMonthKey} /></div></div>
-      <div className="card-grid"><div className="stat-card"><span className="stat-label">Total de Registros</span><span className="stat-value">{records.length}</span></div><div className="stat-card"><span className="stat-label">Total Gasto</span><span className="stat-value">{formatCurrency(total)}</span></div><div className="stat-card"><span className="stat-label">M\u00e9dia por Gasto</span><span className="stat-value">{formatCurrency(avg)}</span></div></div>
-      {records.length === 0 ? (<div className="card" style={{ marginTop: '24px' }}><div className="no-data">Nenhum dado dispon\u00edvel</div></div>) : (<div className="charts-grid"><div className="chart-card"><h3>Top Gastos do M\u00eas</h3><div className="chart-container"><Bar data={barData} options={chartOptions} /></div></div><div className="chart-card"><h3>Distribui\u00e7\u00e3o de Gastos</h3><div className="chart-container"><Pie data={pieData} options={pieOptions} /></div></div><div className="chart-card" style={{ gridColumn: '1 / -1' }}><h3>Gastos por Dia</h3><div className="chart-container"><Bar data={dailyBarData} options={chartOptions} /></div></div></div>)}
+      <div className="page-header"><div className="page-header-row"><div><Link href="/gastos" style={{ color: 'var(--primary-light)', textDecoration: 'none', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}><FiArrowLeft size={14} /> Voltar</Link><h1 className="page-title">Relatórios - Gastos Diversos</h1></div><MonthSelector value={monthKey} onChange={setMonthKey} /></div></div>
+      <div className="card-grid"><div className="stat-card"><span className="stat-label">Total de Registros</span><span className="stat-value">{records.length}</span></div><div className="stat-card"><span className="stat-label">Total Gasto</span><span className="stat-value">{formatCurrency(total)}</span></div><div className="stat-card"><span className="stat-label">Média por Gasto</span><span className="stat-value">{formatCurrency(avg)}</span></div></div>
+      {records.length === 0 ? (<div className="card" style={{ marginTop: '24px' }}><div className="no-data">Nenhum dado disponível</div></div>) : (<div className="charts-grid"><div className="chart-card"><h3>Top Gastos do Mês</h3><div className="chart-container"><Bar data={barData} options={chartOptions} /></div></div><div className="chart-card"><h3>Distribuição de Gastos</h3><div className="chart-container"><Pie data={pieData} options={pieOptions} /></div></div><div className="chart-card" style={{ gridColumn: '1 / -1' }}><h3>Gastos por Dia</h3><div className="chart-container"><Bar data={dailyBarData} options={chartOptions} /></div></div></div>)}
     </>
   );
 }

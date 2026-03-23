@@ -18,8 +18,8 @@ export default function ConfiguracoesPage() {
     e.preventDefault();
     setStatus(null);
     if (!currentPassword) { setStatus({ type: 'error', message: 'Digite sua senha atual' }); return; }
-    if (!newUsername && !newPassword) { setStatus({ type: 'error', message: 'Preencha pelo menos o novo usu\u00e1rio ou nova senha' }); return; }
-    if (newPassword && newPassword !== confirmPassword) { setStatus({ type: 'error', message: 'As senhas n\u00e3o conferem' }); return; }
+    if (!newUsername && !newPassword) { setStatus({ type: 'error', message: 'Preencha pelo menos o novo usuário ou nova senha' }); return; }
+    if (newPassword && newPassword !== confirmPassword) { setStatus({ type: 'error', message: 'As senhas não conferem' }); return; }
 
     setSaving(true);
     const result = await changeCredentials(
@@ -40,7 +40,7 @@ export default function ConfiguracoesPage() {
   return (
     <>
       <div className="page-header">
-        <h1 className="page-title">Configura\u00e7\u00f5es</h1>
+        <h1 className="page-title">Configurações</h1>
         <p className="page-subtitle">Gerencie suas credenciais de acesso</p>
       </div>
       <div className="card" style={{ maxWidth: '520px' }}>
@@ -55,7 +55,7 @@ export default function ConfiguracoesPage() {
           </div>
           <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }} />
           <div className="form-group">
-            <label className="form-label">Novo Usu\u00e1rio</label>
+            <label className="form-label">Novo Usuário</label>
             <div style={{ position: 'relative' }}>
               <input type="text" className="form-input" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} placeholder="Deixe vazio para manter o atual" style={{ paddingLeft: '40px' }} />
               <FiUser style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
@@ -82,11 +82,11 @@ export default function ConfiguracoesPage() {
             </div>
           )}
           <button type="submit" className="btn-primary" style={{ marginTop: '4px' }} disabled={saving}>
-            {saving ? 'Salvando...' : 'Salvar Altera\u00e7\u00f5es'}
+            {saving ? 'Salvando...' : 'Salvar Alterações'}
           </button>
         </form>
         <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '20px', lineHeight: '1.6' }}>
-          \ud83d\udca1 As credenciais padr\u00e3o s\u00e3o <strong>admin / vetfarias2024</strong>. Caso esque\u00e7a suas credenciais alteradas, entre em contato com o administrador do sistema.
+          💡 As credenciais padrão são <strong>admin / vetfarias2024</strong>. Caso esqueça suas credenciais alteradas, entre em contato com o administrador do sistema.
         </p>
       </div>
     </>

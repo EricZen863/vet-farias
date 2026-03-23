@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useAuth } from '../components/AuthProvider';
 import { useState, useEffect } from 'react';
 import { getMonthKey, getMonthLabel } from '../lib/storage';
@@ -21,18 +21,18 @@ export default function Dashboard() {
   if (loading || !isAuthenticated) return null;
   const formatCurrency = (val) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const cards = [
-    { href: '/laboratorio', icon: FiDroplet, title: 'Laborat\u00f3rio', value: stats.labTotal, desc: 'Total a pagar este m\u00eas' },
-    { href: '/volantes-cirurgioes', icon: FiScissors, title: 'Volantes Cirurgi\u00f5es', value: stats.cirurgioesTotal, desc: 'Total pago este m\u00eas' },
-    { href: '/volantes-imagem', icon: FiMonitor, title: 'Volantes Imagem', value: stats.imagemTotal, desc: 'Total pago este m\u00eas' },
-    { href: '/gastos', icon: FiDollarSign, title: 'Gastos Diversos', value: stats.gastosTotal, desc: 'Total gasto este m\u00eas' },
-    { href: '/maquinetas', icon: FiCreditCard, title: 'Maquinetas', value: stats.maquinetasTotal, desc: 'Total recebido este m\u00eas' },
+    { href: '/laboratorio', icon: FiDroplet, title: 'Laboratório', value: stats.labTotal, desc: 'Total a pagar este mês' },
+    { href: '/volantes-cirurgioes', icon: FiScissors, title: 'Volantes Cirurgiões', value: stats.cirurgioesTotal, desc: 'Total pago este mês' },
+    { href: '/volantes-imagem', icon: FiMonitor, title: 'Volantes Imagem', value: stats.imagemTotal, desc: 'Total pago este mês' },
+    { href: '/gastos', icon: FiDollarSign, title: 'Gastos Diversos', value: stats.gastosTotal, desc: 'Total gasto este mês' },
+    { href: '/maquinetas', icon: FiCreditCard, title: 'Maquinetas', value: stats.maquinetasTotal, desc: 'Total recebido este mês' },
   ];
 
   return (
     <>
       <div className="page-header">
         <h1 className="page-title">Dashboard</h1>
-        <p className="page-subtitle">Vis\u00e3o geral \u2014 {getMonthLabel(monthKey)}</p>
+        <p className="page-subtitle">Visão geral — {getMonthLabel(monthKey)}</p>
       </div>
       <div className="dashboard-grid">
         {cards.map((card) => (

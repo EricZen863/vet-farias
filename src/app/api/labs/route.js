@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { initDB, getSQL, isDBAvailable } from '../../../lib/db';
 
 export async function GET(request) {
@@ -17,7 +17,7 @@ export async function POST(request) {
   const { action } = body;
 
   if (action === 'add') {
-    const rows = await sql`INSERT INTO labs (nome, ativo, catalogo) VALUES (${body.nome || 'Novo Laborat\u00f3rio'}, true, '[]'::jsonb) RETURNING *`;
+    const rows = await sql`INSERT INTO labs (nome, ativo, catalogo) VALUES (${body.nome || 'Novo Laboratório'}, true, '[]'::jsonb) RETURNING *`;
     return NextResponse.json(rows[0]);
   }
 

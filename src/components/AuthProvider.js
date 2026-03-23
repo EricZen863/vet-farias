@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 
@@ -65,7 +65,7 @@ export function AuthProvider({ children }) {
       });
       return await res.json();
     } catch {
-      return { success: false, error: 'Erro de conex\u00e3o com o servidor' };
+      return { success: false, error: 'Erro de conexão com o servidor' };
     }
   };
 

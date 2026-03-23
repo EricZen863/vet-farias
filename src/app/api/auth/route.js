@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { initDB, getSQL, isDBAvailable } from '../../../lib/db';
 
 export async function POST(request) {
@@ -10,9 +10,9 @@ export async function POST(request) {
       if (username === 'admin' && password === 'vetfarias2024') {
         return NextResponse.json({ success: true });
       }
-      return NextResponse.json({ success: false, error: 'Usu\u00e1rio ou senha inv\u00e1lidos' });
+      return NextResponse.json({ success: false, error: 'Usuário ou senha inválidos' });
     }
-    return NextResponse.json({ success: false, error: 'Banco de dados n\u00e3o dispon\u00edvel' });
+    return NextResponse.json({ success: false, error: 'Banco de dados não disponível' });
   }
 
   await initDB();
@@ -23,7 +23,7 @@ export async function POST(request) {
     if (rows.length > 0) {
       return NextResponse.json({ success: true });
     }
-    return NextResponse.json({ success: false, error: 'Usu\u00e1rio ou senha inv\u00e1lidos' });
+    return NextResponse.json({ success: false, error: 'Usuário ou senha inválidos' });
   }
 
   if (action === 'change') {
@@ -32,7 +32,7 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: 'Senha atual incorreta' });
     }
     if (!newUsername || newUsername.trim().length < 3) {
-      return NextResponse.json({ success: false, error: 'Novo usu\u00e1rio deve ter pelo menos 3 caracteres' });
+      return NextResponse.json({ success: false, error: 'Novo usuário deve ter pelo menos 3 caracteres' });
     }
     if (!newPassword || newPassword.length < 6) {
       return NextResponse.json({ success: false, error: 'Nova senha deve ter pelo menos 6 caracteres' });

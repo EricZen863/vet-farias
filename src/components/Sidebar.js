@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from './AuthProvider';
@@ -7,12 +7,12 @@ import { useState } from 'react';
 
 const menuItems = [
   { href: '/', label: 'Dashboard', icon: FiHome },
-  { href: '/laboratorio', label: 'Laborat\u00f3rio', icon: FiDroplet },
-  { href: '/volantes-cirurgioes', label: 'Volantes Cirurgi\u00f5es', icon: FiScissors },
+  { href: '/laboratorio', label: 'Laboratório', icon: FiDroplet },
+  { href: '/volantes-cirurgioes', label: 'Volantes Cirurgiões', icon: FiScissors },
   { href: '/volantes-imagem', label: 'Volantes Imagem', icon: FiMonitor },
   { href: '/gastos', label: 'Gastos Diversos', icon: FiDollarSign },
   { href: '/maquinetas', label: 'Maquinetas', icon: FiCreditCard },
-  { href: '/configuracoes', label: 'Configura\u00e7\u00f5es', icon: FiSettings },
+  { href: '/configuracoes', label: 'Configurações', icon: FiSettings },
 ];
 
 export default function Sidebar() {
@@ -33,7 +33,7 @@ export default function Sidebar() {
             <span className="logo-icon">🐾</span>
             <div>
               <h1 className="logo-title">Vet Farias</h1>
-              <p className="logo-subtitle">Gest\u00e3o Interna</p>
+              <p className="logo-subtitle">Gestão Interna</p>
             </div>
           </div>
         </div>

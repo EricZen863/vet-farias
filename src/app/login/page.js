@@ -18,7 +18,7 @@ export default function LoginPage() {
     setLoading(true);
     const success = await login(username, password);
     if (!success) {
-      setError('Usu\u00e1rio ou senha inv\u00e1lidos');
+      setError('Usuário ou senha inválidos');
     }
     setLoading(false);
   };
@@ -27,15 +27,15 @@ export default function LoginPage() {
     <div className="login-page" style={{ marginLeft: 'calc(var(--sidebar-width) * -1)' }}>
       <div className="login-card">
         <div className="login-logo">
-          <span className="logo-icon">\ud83d\udc3e</span>
+          <span className="logo-icon">🐾</span>
           <h1>Vet Farias</h1>
-          <p>Sistema de Gest\u00e3o Interna</p>
+          <p>Sistema de Gestão Interna</p>
         </div>
         <form className="login-form" onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">Usu\u00e1rio</label>
+            <label className="form-label">Usuário</label>
             <div style={{ position: 'relative' }}>
-              <input type="text" className="form-input" placeholder="Digite seu usu\u00e1rio" value={username} onChange={(e) => setUsername(e.target.value)} style={{ paddingLeft: '40px' }} />
+              <input type="text" className="form-input" placeholder="Digite seu usuário" value={username} onChange={(e) => setUsername(e.target.value)} style={{ paddingLeft: '40px' }} />
               <FiUser style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
             </div>
           </div>

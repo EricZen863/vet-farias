@@ -66,7 +66,7 @@ export default function LaboratorioPage() {
     try {
       const res = await fetch('/api/labs', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'add', nome: `Laborat\u00f3rio ${labs.length + 1}` }),
+        body: JSON.stringify({ action: 'add', nome: `Laboratório ${labs.length + 1}` }),
       });
       const newLab = await res.json();
       setLabs([...labs, { ...newLab, catalogo: [] }]);
@@ -131,7 +131,7 @@ export default function LaboratorioPage() {
 
   return (
     <>
-      <div className="page-header"><div className="page-header-row"><div><h1 className="page-title">Coletas Laboratoriais</h1><p className="page-subtitle">Gerencie os custos das coletas terceirizadas</p></div><div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}><Link href="/laboratorio/relatorios" className="report-link"><FiBarChart2 size={16} /> Relat\u00f3rios</Link><MonthSelector value={monthKey} onChange={setMonthKey} /></div></div></div>
+      <div className="page-header"><div className="page-header-row"><div><h1 className="page-title">Coletas Laboratoriais</h1><p className="page-subtitle">Gerencie os custos das coletas terceirizadas</p></div><div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}><Link href="/laboratorio/relatorios" className="report-link"><FiBarChart2 size={16} /> Relatórios</Link><MonthSelector value={monthKey} onChange={setMonthKey} /></div></div></div>
 
       <div className="card" style={{ marginBottom: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
@@ -145,7 +145,7 @@ export default function LaboratorioPage() {
 
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div className="form-group" style={{ flex: 1, minWidth: '200px' }}>
-            <label className="form-label">Nome do Laborat\u00f3rio</label>
+            <label className="form-label">Nome do Laboratório</label>
             <input type="text" className="form-input" value={currentLab?.nome || ''} onChange={(e) => handleLabNameChange(activeLab, e.target.value)} />
           </div>
           <ExcelUploader onUpload={handleExcelUpload} label="Upload Tabela Excel" />
@@ -155,7 +155,7 @@ export default function LaboratorioPage() {
         </div>
 
         {currentLab?.catalogo?.length > 0 && (
-          <p style={{ color: 'var(--text-secondary)', fontSize: '12px', marginTop: '12px' }}>\ud83d\udccb {currentLab.catalogo.length} tipos de coletas carregados</p>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '12px', marginTop: '12px' }}>📋 {currentLab.catalogo.length} tipos de coletas carregados</p>
         )}
 
         <div style={{ marginTop: '16px' }}>
@@ -165,12 +165,12 @@ export default function LaboratorioPage() {
           </button>
           {showExcelExample && (
             <div style={{ marginTop: '12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '16px', fontSize: '13px' }}>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>A planilha Excel deve ter as seguintes colunas na <strong>primeira linha</strong> (cabe\u00e7alho):</p>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>A planilha Excel deve ter as seguintes colunas na <strong>primeira linha</strong> (cabeçalho):</p>
               <div className="table-wrapper" style={{ marginTop: '0' }}>
-                <table><thead><tr><th>Coleta</th><th>Pre\u00e7o de Custo</th><th>Prazo de Entrega</th><th>Repasse</th><th>Lucro</th></tr></thead>
-                <tbody><tr><td>Hemograma Completo</td><td>15,00</td><td>2 dias</td><td>45,00</td><td>30,00</td></tr><tr><td>Bioqu\u00edmico Renal</td><td>25,00</td><td>3 dias</td><td>70,00</td><td>45,00</td></tr><tr><td>Urin\u00e1lise</td><td>12,00</td><td>1 dia</td><td>35,00</td><td>23,00</td></tr></tbody></table>
+                <table><thead><tr><th>Coleta</th><th>Preço de Custo</th><th>Prazo de Entrega</th><th>Repasse</th><th>Lucro</th></tr></thead>
+                <tbody><tr><td>Hemograma Completo</td><td>15,00</td><td>2 dias</td><td>45,00</td><td>30,00</td></tr><tr><td>Bioquímico Renal</td><td>25,00</td><td>3 dias</td><td>70,00</td><td>45,00</td></tr><tr><td>Urinálise</td><td>12,00</td><td>1 dia</td><td>35,00</td><td>23,00</td></tr></tbody></table>
               </div>
-              <p style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '10px' }}>\ud83d\udca1 Os nomes das colunas n\u00e3o precisam ser exatamente iguais. O sistema reconhece varia\u00e7\u00f5es como &quot;Custo&quot;, &quot;Pre\u00e7o&quot;, &quot;Nome&quot;, etc.</p>
+              <p style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '10px' }}>💡 Os nomes das colunas não precisam ser exatamente iguais. O sistema reconhece variações como &quot;Custo&quot;, &quot;Preço&quot;, &quot;Nome&quot;, etc.</p>
             </div>
           )}
         </div>
@@ -181,7 +181,7 @@ export default function LaboratorioPage() {
         <div className="inline-form">
           <div className="form-group"><label className="form-label">Coleta</label><Autocomplete options={coletaOptions} value={selectedColeta} onChange={handleColetaSelect} placeholder="Digite 3 letras para buscar..." /></div>
           {coletaInfo && (<>
-            <div className="form-group" style={{ minWidth: '120px' }}><label className="form-label">Pre\u00e7o Custo</label><input type="text" className="form-input" value={formatCurrency(coletaInfo.precoCusto)} readOnly /></div>
+            <div className="form-group" style={{ minWidth: '120px' }}><label className="form-label">Preço Custo</label><input type="text" className="form-input" value={formatCurrency(coletaInfo.precoCusto)} readOnly /></div>
             <div className="form-group" style={{ minWidth: '120px' }}><label className="form-label">Prazo</label><input type="text" className="form-input" value={coletaInfo.prazoEntrega} readOnly /></div>
             <div className="form-group" style={{ minWidth: '120px' }}><label className="form-label">Repasse</label><input type="text" className="form-input" value={formatCurrency(coletaInfo.repasse)} readOnly /></div>
             <div className="form-group" style={{ minWidth: '100px' }}><label className="form-label">Lucro</label><input type="text" className="form-input" value={formatCurrency(coletaInfo.lucro)} readOnly /></div>
@@ -191,12 +191,12 @@ export default function LaboratorioPage() {
       </div>
 
       <div className="card">
-        <h2 className="card-title">Coletas do M\u00eas</h2>
-        {records.length === 0 ? (<div className="no-data">Nenhuma coleta registrada neste m\u00eas</div>) : (
-          <div className="table-wrapper"><table><thead><tr><th>Data</th><th>Coleta</th><th>Pre\u00e7o Custo</th><th>Prazo</th><th>Repasse</th><th>Lucro</th><th></th></tr></thead>
+        <h2 className="card-title">Coletas do Mês</h2>
+        {records.length === 0 ? (<div className="no-data">Nenhuma coleta registrada neste mês</div>) : (
+          <div className="table-wrapper"><table><thead><tr><th>Data</th><th>Coleta</th><th>Preço Custo</th><th>Prazo</th><th>Repasse</th><th>Lucro</th><th></th></tr></thead>
           <tbody>{records.map((r) => (<tr key={r.id}><td>{new Date(r.data).toLocaleDateString('pt-BR')}</td><td>{r.coleta}</td><td>{formatCurrency(r.precoCusto)}</td><td>{r.prazoEntrega}</td><td>{formatCurrency(r.repasse)}</td><td>{formatCurrency(r.lucro)}</td><td><button className="delete-btn" onClick={() => deleteRecord(r.id)}><FiTrash2 /></button></td></tr>))}</tbody></table></div>
         )}
-        <div className="total-bar"><span className="total-label">Total a pagar ao {currentLab?.nome || 'laborat\u00f3rio'}</span><span className="total-value">{formatCurrency(total)}</span></div>
+        <div className="total-bar"><span className="total-label">Total a pagar ao {currentLab?.nome || 'laboratório'}</span><span className="total-value">{formatCurrency(total)}</span></div>
       </div>
     </>
   );

@@ -1,4 +1,4 @@
-import { neon } from '@neondatabase/serverless';
+﻿import { neon } from '@neondatabase/serverless';
 
 let sql = null;
 
@@ -34,7 +34,7 @@ export async function initDB() {
   await db`
     CREATE TABLE IF NOT EXISTS labs (
       id SERIAL PRIMARY KEY,
-      nome VARCHAR(200) NOT NULL DEFAULT 'Laborat\u00f3rio 1',
+      nome VARCHAR(200) NOT NULL DEFAULT 'Laboratório 1',
       ativo BOOLEAN NOT NULL DEFAULT true,
       catalogo JSONB DEFAULT '[]'
     )
@@ -42,7 +42,7 @@ export async function initDB() {
 
   await db`
     INSERT INTO labs (nome, ativo, catalogo)
-    SELECT 'Laborat\u00f3rio 1', true, '[]'::jsonb
+    SELECT 'Laboratório 1', true, '[]'::jsonb
     WHERE NOT EXISTS (SELECT 1 FROM labs)
   `;
 

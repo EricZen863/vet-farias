@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../components/AuthProvider';
 import MonthSelector from '../../components/MonthSelector';
@@ -97,7 +97,7 @@ export default function MaquinetasPage() {
 
   return (
     <>
-      <div className="page-header"><div className="page-header-row"><div><h1 className="page-title">Maquinetas</h1><p className="page-subtitle">Controle de recebimentos das maquinetas</p></div><div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}><Link href="/maquinetas/relatorios" className="report-link"><FiBarChart2 size={16} /> Relat\u00f3rios</Link><MonthSelector value={monthKey} onChange={setMonthKey} /></div></div></div>
+      <div className="page-header"><div className="page-header-row"><div><h1 className="page-title">Maquinetas</h1><p className="page-subtitle">Controle de recebimentos das maquinetas</p></div><div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}><Link href="/maquinetas/relatorios" className="report-link"><FiBarChart2 size={16} /> Relatórios</Link><MonthSelector value={monthKey} onChange={setMonthKey} /></div></div></div>
 
       <div className="card" style={{ marginBottom: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
@@ -118,7 +118,7 @@ export default function MaquinetasPage() {
             <input type="text" className="form-input" value={currentMaq?.nome || ''} onChange={(e) => updateMachineName(activeMaq, e.target.value)} />
           </div>
           <div className="form-group" style={{ minWidth: '180px' }}>
-            <label className="form-label">Limite M\u00e1ximo Mensal (R$)</label>
+            <label className="form-label">Limite Máximo Mensal (R$)</label>
             <input type="number" className="form-input" value={maximo || ''} onChange={(e) => updateMaximo(activeMaq, e.target.value)} placeholder="0,00" step="0.01" />
           </div>
         </div>
@@ -130,8 +130,8 @@ export default function MaquinetasPage() {
               <span>{percent.toFixed(0)}%</span>
             </div>
             <div className="progress-bar"><div className={`progress-fill ${isOverLimit ? 'danger' : isNearLimit ? 'warning' : ''}`} style={{ width: `${percent}%` }} /></div>
-            {isNearLimit && !isOverLimit && (<div className="limit-alert warning"><FiAlertTriangle size={14} /> Aten\u00e7\u00e3o: a maquineta est\u00e1 se aproximando do limite m\u00e1ximo!</div>)}
-            {isOverLimit && (<div className="limit-alert danger"><FiAlertTriangle size={14} /> A maquineta atingiu ou ultrapassou o limite m\u00e1ximo!</div>)}
+            {isNearLimit && !isOverLimit && (<div className="limit-alert warning"><FiAlertTriangle size={14} /> Atenção: a maquineta está se aproximando do limite máximo!</div>)}
+            {isOverLimit && (<div className="limit-alert danger"><FiAlertTriangle size={14} /> A maquineta atingiu ou ultrapassou o limite máximo!</div>)}
           </div>
         )}
       </div>
@@ -140,15 +140,15 @@ export default function MaquinetasPage() {
         <h2 className="card-title">Registrar Recebimento</h2>
         <div className="inline-form">
           <div className="form-group"><label className="form-label">Data</label><input type="date" className="form-input" value={data} onChange={(e) => setData(e.target.value)} /></div>
-          <div className="form-group"><label className="form-label">Nota</label><select className="form-input" value={nota} onChange={(e) => setNota(e.target.value)}><option>N/A</option><option>D\u00e9bito</option><option>Cr\u00e9dito</option><option>PIX</option></select></div>
+          <div className="form-group"><label className="form-label">Nota</label><select className="form-input" value={nota} onChange={(e) => setNota(e.target.value)}><option>N/A</option><option>Débito</option><option>Crédito</option><option>PIX</option></select></div>
           <div className="form-group" style={{ minWidth: '140px' }}><label className="form-label">Valor (R$)</label><input type="number" className="form-input" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="0,00" step="0.01" /></div>
           <button className="btn-primary" onClick={addRecord}>Adicionar</button>
         </div>
       </div>
 
       <div className="card" style={{ marginBottom: '24px' }}>
-        <h2 className="card-title">Recebimentos do M\u00eas</h2>
-        {currentRecords.length === 0 ? (<div className="no-data">Nenhum recebimento neste m\u00eas</div>) : (
+        <h2 className="card-title">Recebimentos do Mês</h2>
+        {currentRecords.length === 0 ? (<div className="no-data">Nenhum recebimento neste mês</div>) : (
           <div className="table-wrapper"><table><thead><tr><th>Data</th><th>Nota</th><th>Valor</th><th></th></tr></thead>
           <tbody>{currentRecords.map((r) => (<tr key={r.id}><td>{r.data}</td><td>{r.nota}</td><td>{formatCurrency(r.valor)}</td><td><button className="delete-btn" onClick={() => deleteRecord(r.id)}><FiTrash2 /></button></td></tr>))}</tbody></table></div>
         )}
@@ -156,8 +156,8 @@ export default function MaquinetasPage() {
       </div>
 
       <div className="card">
-        <h2 className="card-title">Observa\u00e7\u00f5es</h2>
-        <textarea className="form-input" style={{ minHeight: '100px', resize: 'vertical' }} value={currentObs} onChange={(e) => updateObs(e.target.value)} placeholder="Adicione observa\u00e7\u00f5es sobre esta maquineta..." />
+        <h2 className="card-title">Observações</h2>
+        <textarea className="form-input" style={{ minHeight: '100px', resize: 'vertical' }} value={currentObs} onChange={(e) => updateObs(e.target.value)} placeholder="Adicione observações sobre esta maquineta..." />
       </div>
     </>
   );

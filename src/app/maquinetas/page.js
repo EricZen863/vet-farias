@@ -2,170 +2,163 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../components/AuthProvider';
 import MonthSelector from '../../components/MonthSelector';
-import { saveData, loadData, getMonthKey } from '../../lib/storage';
+import { getMonthKey } from '../../lib/storage';
 import Link from 'next/link';
-import { FiTrash2, FiBarChart2, FiPlus, FiAlertTriangle } from 'react-icons/fi';
+import { FiTrash2, FiBarChart2, FiPlus, FiMinus, FiAlertTriangle } from 'react-icons/fi';
 
 export default function MaquinetasPage() {
   const { isAuthenticated, loading } = useAuth();
   const [monthKey, setMonthKey] = useState(getMonthKey());
   const [machines, setMachines] = useState([]);
-  const [allRecords, setAllRecords] = useState({});
+  const [records, setRecords] = useState({});
   const [observations, setObservations] = useState({});
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    const savedMachines = loadData('maquinetas', 'config', [
-      { id: 1, nome: 'Maquineta 1', maximo: 0 },
-      { id: 2, nome: 'Maquineta 2', maximo: 0 },
-      { id: 3, nome: 'Maquineta 3', maximo: 0 },
-    ]);
-    setMachines(savedMachines);
-    const recs = {}; const obs = {};
-    savedMachines.forEach(m => {
-      recs[m.id] = loadData('maquinetas', `records_${m.id}_${monthKey}`, []);
-      obs[m.id] = loadData('maquinetas', `obs_${m.id}_${monthKey}`, '');
-    });
-    setAllRecords(recs); setObservations(obs);
-  }, [isAuthenticated, monthKey]);
-
-  const updateMachineName = (id, nome) => {
-    const updated = machines.map(m => m.id === id ? { ...m, nome } : m);
-    setMachines(updated); saveData('maquinetas', 'config', updated);
-  };
-
-  const updateMaximo = (id, maximo) => {
-    const updated = machines.map(m => m.id === id ? { ...m, maximo: parseFloat(maximo) || 0 } : m);
-    setMachines(updated); saveData('maquinetas', 'config', updated);
-  };
-
-  const addMachine = () => {
-    const newId = Math.max(...machines.map(m => m.id), 0) + 1;
-    const updated = [...machines, { id: newId, nome: `Maquineta ${newId}`, maximo: 0 }];
-    setMachines(updated); saveData('maquinetas', 'config', updated);
-    setAllRecords({ ...allRecords, [newId]: [] }); setObservations({ ...observations, [newId]: '' });
-  };
-
-  const removeMachine = (id) => {
-    const updated = machines.filter(m => m.id !== id);
-    setMachines(updated); saveData('maquinetas', 'config', updated);
-    const newRecs = { ...allRecords }; delete newRecs[id]; setAllRecords(newRecs);
-    const newObs = { ...observations }; delete newObs[id]; setObservations(newObs);
-  };
-
-  const addRecord = (machineId, data, nota, valor) => {
-    if (!data || !valor) return;
-    const newRecord = { id: Date.now(), data, nota, valor: parseFloat(valor) };
-    const records = [...(allRecords[machineId] || []), newRecord];
-    setAllRecords({ ...allRecords, [machineId]: records });
-    saveData('maquinetas', `records_${machineId}_${monthKey}`, records);
-  };
-
-  const deleteRecord = (machineId, recordId) => {
-    const records = (allRecords[machineId] || []).filter(r => r.id !== recordId);
-    setAllRecords({ ...allRecords, [machineId]: records });
-    saveData('maquinetas', `records_${machineId}_${monthKey}`, records);
-  };
-
-  const updateObservation = (machineId, text) => {
-    setObservations({ ...observations, [machineId]: text });
-    saveData('maquinetas', `obs_${machineId}_${monthKey}`, text);
-  };
-
-  const formatCurrency = (val) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  const grandTotal = machines.reduce((sum, m) => sum + (allRecords[m.id] || []).reduce((s, r) => s + r.valor, 0), 0);
-
-  if (loading || !isAuthenticated) return null;
-
-  return (
-    <>
-      <div className="page-header">
-        <div className="page-header-row">
-          <div>
-            <h1 className="page-title">Maquinetas</h1>
-            <p className="page-subtitle">Controle de recebimentos por maquineta</p>
-          </div>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <Link href="/maquinetas/relatorios" className="report-link"><FiBarChart2 size={16} /> Relatórios</Link>
-            <MonthSelector value={monthKey} onChange={setMonthKey} />
-          </div>
-        </div>
-      </div>
-
-      <div className="maquineta-grid">
-        {machines.map((machine) => {
-          const records = allRecords[machine.id] || [];
-          const total = records.reduce((s, r) => s + r.valor, 0);
-          const pct = machine.maximo > 0 ? (total / machine.maximo) * 100 : 0;
-          const alertClass = pct >= 90 ? 'danger' : pct >= 80 ? 'warning' : 'safe';
-
-          return (
-            <div key={machine.id} className="maquineta-card">
-              <div className="maquineta-header">
-                <div className="editable-title">
-                  <input type="text" value={machine.nome} onChange={(e) => updateMachineName(machine.id, e.target.value)} />
-                </div>
-                <button className="btn-danger btn-small" onClick={() => removeMachine(machine.id)}>Remover</button>
-              </div>
-              <div className="maquineta-body">
-                <div className="form-group" style={{ marginBottom: '16px' }}>
-                  <label className="form-label">Máximo (R$)</label>
-                  <input type="number" className="form-input" value={machine.maximo || ''} onChange={(e) => updateMaximo(machine.id, e.target.value)} placeholder="Limite máximo" step="0.01" />
-                </div>
-                {machine.maximo > 0 && (
-                  <div className="progress-container" style={{ marginBottom: '16px' }}>
-                    <div className="progress-bar-bg"><div className={`progress-bar-fill ${alertClass}`} style={{ width: `${Math.min(pct, 100)}%` }} /></div>
-                    <div className="progress-info"><span>{pct.toFixed(1)}%</span><span>{formatCurrency(total)} / {formatCurrency(machine.maximo)}</span></div>
-                    {pct >= 80 && (<div className={`alert-badge alert-${alertClass}`} style={{ marginTop: '8px' }}><FiAlertTriangle size={14} />{pct >= 90 ? 'ATENÇÃO: Limite quase atingido!' : 'Aviso: Aproximando do limite'}</div>)}
-                  </div>
-                )}
-                <MachineRecordForm machineId={machine.id} onAdd={addRecord} />
-                {records.length > 0 && (
-                  <div className="table-wrapper" style={{ marginTop: '12px' }}>
-                    <table><thead><tr><th>Data</th><th>Nota</th><th>Valor</th><th></th></tr></thead>
-                    <tbody>{records.map((r) => (<tr key={r.id}><td>{r.data}</td><td><span className={`note-status note-${r.nota === 'OK' ? 'ok' : r.nota === 'Falta' ? 'falta' : 'na'}`}>{r.nota}</span></td><td>{formatCurrency(r.valor)}</td><td><button className="delete-btn" onClick={() => deleteRecord(machine.id, r.id)}><FiTrash2 /></button></td></tr>))}</tbody></table>
-                  </div>
-                )}
-              </div>
-              <div className="maquineta-footer">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <span style={{ fontWeight: '600', fontSize: '13px', color: 'var(--text-secondary)' }}>Total do Mês</span>
-                  <span style={{ fontWeight: '700', fontSize: '20px', color: 'var(--primary-light)' }}>{formatCurrency(total)}</span>
-                </div>
-                <label className="form-label">Observação</label>
-                <textarea className="obs-field" value={observations[machine.id] || ''} onChange={(e) => updateObservation(machine.id, e.target.value)} placeholder="Deixe uma observação..." />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <button className="add-btn" style={{ marginTop: '24px' }} onClick={addMachine}><FiPlus size={18} /> Adicionar Nova Maquineta</button>
-
-      <div className="total-bar" style={{ marginTop: '24px' }}>
-        <span className="total-label">Total Geral - Todas as Maquinetas</span>
-        <span className="total-value">{formatCurrency(grandTotal)}</span>
-      </div>
-    </>
-  );
-}
-
-function MachineRecordForm({ machineId, onAdd }) {
+  const [activeMaq, setActiveMaq] = useState(0);
   const [data, setData] = useState('');
   const [nota, setNota] = useState('N/A');
   const [valor, setValor] = useState('');
-  const handleAdd = () => {
-    onAdd(machineId, data, nota, valor);
-    setData(''); setNota('N/A'); setValor('');
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    fetch(`/api/maquinetas?month=${monthKey}`)
+      .then(r => r.json())
+      .then(result => {
+        if (result.machines?.length > 0) {
+          setMachines(result.machines);
+          setRecords(result.records || {});
+          setObservations(result.observations || {});
+        }
+      }).catch(() => {});
+  }, [isAuthenticated, monthKey]);
+
+  const updateMachineName = async (index, nome) => {
+    const m = machines[index];
+    await fetch('/api/maquinetas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'updateName', id: m.id, nome }) });
+    const updated = [...machines]; updated[index] = { ...m, nome }; setMachines(updated);
   };
+
+  const updateMaximo = async (index, maximo) => {
+    const m = machines[index];
+    await fetch('/api/maquinetas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'updateMaximo', id: m.id, maximo: parseFloat(maximo) || 0 }) });
+    const updated = [...machines]; updated[index] = { ...m, maximo: parseFloat(maximo) || 0 }; setMachines(updated);
+  };
+
+  const addMachine = async () => {
+    try {
+      const res = await fetch('/api/maquinetas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'addMachine', nome: `Maquineta ${machines.length + 1}` }) });
+      const newMachine = await res.json();
+      setMachines([...machines, newMachine]);
+      setRecords({ ...records, [newMachine.id]: [] });
+    } catch {}
+  };
+
+  const removeMachine = async (index) => {
+    const m = machines[index];
+    if (machines.length <= 1) return;
+    await fetch('/api/maquinetas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'removeMachine', id: m.id }) });
+    const updated = machines.filter((_, i) => i !== index);
+    setMachines(updated);
+    if (activeMaq >= updated.length) setActiveMaq(updated.length - 1);
+  };
+
+  const addRecord = async () => {
+    if (!data || !valor) return;
+    const m = machines[activeMaq];
+    try {
+      const res = await fetch('/api/maquinetas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'addRecord', machineId: m.id, month: monthKey, data, nota, valor: parseFloat(valor) }) });
+      const newRecord = await res.json();
+      setRecords({ ...records, [m.id]: [...(records[m.id] || []), newRecord] });
+      setData(''); setNota('N/A'); setValor('');
+    } catch {}
+  };
+
+  const deleteRecord = async (recordId) => {
+    const m = machines[activeMaq];
+    await fetch('/api/maquinetas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'deleteRecord', id: recordId }) });
+    setRecords({ ...records, [m.id]: (records[m.id] || []).filter(r => r.id !== recordId) });
+  };
+
+  const updateObs = async (texto) => {
+    const m = machines[activeMaq];
+    setObservations({ ...observations, [m.id]: texto });
+    await fetch('/api/maquinetas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'updateObs', machineId: m.id, month: monthKey, texto }) });
+  };
+
+  const formatCurrency = (val) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  if (loading || !isAuthenticated) return null;
+
+  const currentMaq = machines[activeMaq];
+  const currentRecords = currentMaq ? (records[currentMaq.id] || []) : [];
+  const currentTotal = currentRecords.reduce((sum, r) => sum + r.valor, 0);
+  const currentObs = currentMaq ? (observations[currentMaq.id] || '') : '';
+  const maximo = currentMaq?.maximo || 0;
+  const percent = maximo > 0 ? Math.min((currentTotal / maximo) * 100, 100) : 0;
+  const isNearLimit = maximo > 0 && percent >= 80;
+  const isOverLimit = maximo > 0 && currentTotal >= maximo;
+
   return (
-    <div style={{ display: 'flex', gap: '8px', alignItems: 'end', flexWrap: 'wrap' }}>
-      <input type="date" className="form-input" style={{ flex: '1', minWidth: '120px' }} value={data} onChange={(e) => setData(e.target.value)} />
-      <select className="form-input" style={{ width: '80px' }} value={nota} onChange={(e) => setNota(e.target.value)}>
-        <option>N/A</option><option>OK</option><option>Falta</option>
-      </select>
-      <input type="number" className="form-input" style={{ width: '100px' }} value={valor} onChange={(e) => setValor(e.target.value)} placeholder="Valor" step="0.01" />
-      <button className="btn-primary btn-small" onClick={handleAdd} style={{ padding: '12px', borderRadius: '8px' }}><FiPlus size={16} /></button>
-    </div>
+    <>
+      <div className="page-header"><div className="page-header-row"><div><h1 className="page-title">Maquinetas</h1><p className="page-subtitle">Controle de recebimentos das maquinetas</p></div><div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}><Link href="/maquinetas/relatorios" className="report-link"><FiBarChart2 size={16} /> Relat\u00f3rios</Link><MonthSelector value={monthKey} onChange={setMonthKey} /></div></div></div>
+
+      <div className="card" style={{ marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+          <div className="tabs" style={{ marginBottom: 0 }}>
+            {machines.map((m, i) => (
+              <button key={m.id} className={`tab ${activeMaq === i ? 'tab-active' : ''}`} onClick={() => setActiveMaq(i)}>{m.nome}</button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button className="btn-secondary btn-small" onClick={addMachine}><FiPlus size={14} /> Adicionar</button>
+            {machines.length > 1 && <button className="btn-secondary btn-small" onClick={() => removeMachine(activeMaq)} style={{ color: 'var(--danger)' }}><FiMinus size={14} /> Remover</button>}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="form-group" style={{ flex: 1, minWidth: '200px' }}>
+            <label className="form-label">Nome da Maquineta</label>
+            <input type="text" className="form-input" value={currentMaq?.nome || ''} onChange={(e) => updateMachineName(activeMaq, e.target.value)} />
+          </div>
+          <div className="form-group" style={{ minWidth: '180px' }}>
+            <label className="form-label">Limite M\u00e1ximo Mensal (R$)</label>
+            <input type="number" className="form-input" value={maximo || ''} onChange={(e) => updateMaximo(activeMaq, e.target.value)} placeholder="0,00" step="0.01" />
+          </div>
+        </div>
+
+        {maximo > 0 && (
+          <div style={{ marginTop: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+              <span>{formatCurrency(currentTotal)} / {formatCurrency(maximo)}</span>
+              <span>{percent.toFixed(0)}%</span>
+            </div>
+            <div className="progress-bar"><div className={`progress-fill ${isOverLimit ? 'danger' : isNearLimit ? 'warning' : ''}`} style={{ width: `${percent}%` }} /></div>
+            {isNearLimit && !isOverLimit && (<div className="limit-alert warning"><FiAlertTriangle size={14} /> Aten\u00e7\u00e3o: a maquineta est\u00e1 se aproximando do limite m\u00e1ximo!</div>)}
+            {isOverLimit && (<div className="limit-alert danger"><FiAlertTriangle size={14} /> A maquineta atingiu ou ultrapassou o limite m\u00e1ximo!</div>)}
+          </div>
+        )}
+      </div>
+
+      <div className="card" style={{ marginBottom: '24px' }}>
+        <h2 className="card-title">Registrar Recebimento</h2>
+        <div className="inline-form">
+          <div className="form-group"><label className="form-label">Data</label><input type="date" className="form-input" value={data} onChange={(e) => setData(e.target.value)} /></div>
+          <div className="form-group"><label className="form-label">Nota</label><select className="form-input" value={nota} onChange={(e) => setNota(e.target.value)}><option>N/A</option><option>D\u00e9bito</option><option>Cr\u00e9dito</option><option>PIX</option></select></div>
+          <div className="form-group" style={{ minWidth: '140px' }}><label className="form-label">Valor (R$)</label><input type="number" className="form-input" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="0,00" step="0.01" /></div>
+          <button className="btn-primary" onClick={addRecord}>Adicionar</button>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: '24px' }}>
+        <h2 className="card-title">Recebimentos do M\u00eas</h2>
+        {currentRecords.length === 0 ? (<div className="no-data">Nenhum recebimento neste m\u00eas</div>) : (
+          <div className="table-wrapper"><table><thead><tr><th>Data</th><th>Nota</th><th>Valor</th><th></th></tr></thead>
+          <tbody>{currentRecords.map((r) => (<tr key={r.id}><td>{r.data}</td><td>{r.nota}</td><td>{formatCurrency(r.valor)}</td><td><button className="delete-btn" onClick={() => deleteRecord(r.id)}><FiTrash2 /></button></td></tr>))}</tbody></table></div>
+        )}
+        <div className="total-bar"><span className="total-label">Total recebido em {currentMaq?.nome || 'maquineta'}</span><span className="total-value">{formatCurrency(currentTotal)}</span></div>
+      </div>
+
+      <div className="card">
+        <h2 className="card-title">Observa\u00e7\u00f5es</h2>
+        <textarea className="form-input" style={{ minHeight: '100px', resize: 'vertical' }} value={currentObs} onChange={(e) => updateObs(e.target.value)} placeholder="Adicione observa\u00e7\u00f5es sobre esta maquineta..." />
+      </div>
+    </>
   );
 }

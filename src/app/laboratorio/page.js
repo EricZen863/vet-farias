@@ -13,10 +13,9 @@ export default function LaboratorioPage() {
   const { isAuthenticated, loading } = useAuth();
   const [monthKey, setMonthKey] = useState(getMonthKey());
   const [labs, setLabs] = useState([]);
-  const [activeLab, setActiveLab] = useState(0);
-  const [selectedColeta, setSelectedColeta] = useState('');
-  const [records, setRecords] = useState([]);
-  const [coletaInfo, setColetaInfo] = useState(null);
+  const [records, setRecords] = useState({});
+  const [forms, setForms] = useState({});
+  const [coletaInfos, setColetaInfos] = useState({});
   const [showExcelExample, setShowExcelExample] = useState(false);
 
   useEffect(() => {
@@ -24,30 +23,39 @@ export default function LaboratorioPage() {
     fetch('/api/labs')
       .then(r => r.json())
       .then(data => {
-        if (data.length > 0) {
-          setLabs(data);
-          setActiveLab(data.findIndex(l => l.ativo) >= 0 ? data.findIndex(l => l.ativo) : 0);
-        }
+        if (data.length > 0) setLabs(data);
       }).catch(() => {});
   }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated || labs.length === 0) return;
-    const lab = labs[activeLab];
-    if (!lab) return;
-    fetch(`/api/records?module=lab&month=${monthKey}&labId=${lab.id}`)
-      .then(r => r.json()).then(setRecords).catch(() => {});
-  }, [isAuthenticated, monthKey, activeLab, labs]);
+    labs.filter(l => l.ativo).forEach(lab => {
+      fetch(`/api/records?module=lab&month=${monthKey}&labId=${lab.id}`)
+        .then(r => r.json())
+        .then(data => setRecords(prev => ({ ...prev, [lab.id]: data })))
+        .catch(() => {});
+    });
+  }, [isAuthenticated, monthKey, labs]);
 
-  const handleExcelUpload = async (file) => {
+  const getForm = (id) => forms[id] || '';
+  const setFormValue = (id, value) => {
+    setForms(prev => ({ ...prev, [id]: value }));
+    const lab = labs.find(l => l.id === id);
+    if (lab) {
+      const found = lab.catalogo?.find(c => c.coleta.toLowerCase() === value.toLowerCase());
+      setColetaInfos(prev => ({ ...prev, [id]: found || null }));
+    }
+  };
+
+  const handleExcelUpload = async (file, labId) => {
     const data = await parseExcelFile(file);
-    const lab = labs[activeLab];
+    const labIndex = labs.findIndex(l => l.id === labId);
     await fetch('/api/labs', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'uploadCatalog', id: lab.id, catalogo: data }),
+      body: JSON.stringify({ action: 'uploadCatalog', id: labId, catalogo: data }),
     });
     const updatedLabs = [...labs];
-    updatedLabs[activeLab] = { ...updatedLabs[activeLab], catalogo: data };
+    updatedLabs[labIndex] = { ...updatedLabs[labIndex], catalogo: data };
     setLabs(updatedLabs);
     return data;
   };
@@ -82,121 +90,150 @@ export default function LaboratorioPage() {
     const updatedLabs = [...labs];
     updatedLabs[index] = { ...updatedLabs[index], ativo: !updatedLabs[index].ativo };
     setLabs(updatedLabs);
-    if (!updatedLabs[activeLab]?.ativo) {
-      const nextActive = updatedLabs.findIndex(l => l.ativo);
-      if (nextActive >= 0) setActiveLab(nextActive);
-    }
   };
 
-  const handleColetaSelect = (val) => {
-    setSelectedColeta(val);
-    const lab = labs[activeLab];
-    if (lab) {
-      const found = lab.catalogo.find(c => c.coleta.toLowerCase() === val.toLowerCase());
-      setColetaInfo(found || null);
-    }
-  };
-
-  const addRecord = async () => {
-    if (!selectedColeta || !coletaInfo) return;
-    const lab = labs[activeLab];
+  const addRecord = async (labId) => {
+    const info = coletaInfos[labId];
+    if (!info) return;
     try {
       const res = await fetch('/api/records', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          module: 'lab', month: monthKey, labId: lab.id,
-          coleta: coletaInfo.coleta, precoCusto: coletaInfo.precoCusto,
-          prazoEntrega: coletaInfo.prazoEntrega, repasse: coletaInfo.repasse, lucro: coletaInfo.lucro,
+          module: 'lab', month: monthKey, labId,
+          coleta: info.coleta, precoCusto: info.precoCusto,
+          prazoEntrega: info.prazoEntrega, repasse: info.repasse, lucro: info.lucro,
         }),
       });
       const newRecord = await res.json();
-      setRecords([...records, newRecord]);
-      setSelectedColeta(''); setColetaInfo(null);
+      setRecords(prev => ({ ...prev, [labId]: [...(prev[labId] || []), newRecord] }));
+      setForms(prev => ({ ...prev, [labId]: '' }));
+      setColetaInfos(prev => ({ ...prev, [labId]: null }));
     } catch {}
   };
 
-  const deleteRecord = async (id) => {
+  const deleteRecord = async (labId, id) => {
     try {
       await fetch(`/api/records?module=lab&id=${id}`, { method: 'DELETE' });
-      setRecords(records.filter(r => r.id !== id));
+      setRecords(prev => ({ ...prev, [labId]: (prev[labId] || []).filter(r => r.id !== id) }));
     } catch {}
   };
 
-  const total = records.reduce((sum, r) => sum + (r.precoCusto || 0), 0);
   const formatCurrency = (val) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   if (loading || !isAuthenticated) return null;
 
-  const currentLab = labs[activeLab];
-  const coletaOptions = currentLab?.catalogo?.map(c => c.coleta) || [];
+  const activeLabs = labs.filter(l => l.ativo);
 
   return (
     <>
-      <div className="page-header"><div className="page-header-row"><div><h1 className="page-title">Coletas Laboratoriais</h1><p className="page-subtitle">Gerencie os custos das coletas terceirizadas</p></div><div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}><Link href="/laboratorio/relatorios" className="report-link"><FiBarChart2 size={16} /> Relatórios</Link><MonthSelector value={monthKey} onChange={setMonthKey} /></div></div></div>
+      <div className="page-header">
+        <div className="page-header-row">
+          <div>
+            <h1 className="page-title">Coletas Laboratoriais</h1>
+            <p className="page-subtitle">Gerencie os custos das coletas terceirizadas</p>
+          </div>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <button className="btn-secondary btn-small" onClick={addLab}><FiPlus size={14} /> Adicionar Lab</button>
+            <Link href="/laboratorio/relatorios" className="report-link"><FiBarChart2 size={16} /> Relatórios</Link>
+            <MonthSelector value={monthKey} onChange={setMonthKey} />
+          </div>
+        </div>
+      </div>
 
+      {/* Excel example info */}
       <div className="card" style={{ marginBottom: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
-          <div className="tabs" style={{ marginBottom: 0 }}>
-            {labs.map((lab, i) => lab.ativo && (
-              <button key={i} className={`tab ${activeLab === i ? 'tab-active' : ''}`} onClick={() => setActiveLab(i)}>{lab.nome}</button>
-            ))}
-          </div>
-          <button className="btn-secondary btn-small" onClick={addLab}><FiPlus size={14} /> Adicionar Lab</button>
-        </div>
-
-        <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div className="form-group" style={{ flex: 1, minWidth: '200px' }}>
-            <label className="form-label">Nome do Laboratório</label>
-            <input type="text" className="form-input" value={currentLab?.nome || ''} onChange={(e) => handleLabNameChange(activeLab, e.target.value)} />
-          </div>
-          <ExcelUploader onUpload={handleExcelUpload} label="Upload Tabela Excel" />
-          {labs.length > 1 && (
-            <div className="lab-toggle"><span>Ativo</span><div className={`toggle-switch ${currentLab?.ativo ? 'active' : ''}`} onClick={() => toggleLab(activeLab)} /></div>
-          )}
-        </div>
-
-        {currentLab?.catalogo?.length > 0 && (
-          <p style={{ color: 'var(--text-secondary)', fontSize: '12px', marginTop: '12px' }}>📋 {currentLab.catalogo.length} tipos de coletas carregados</p>
-        )}
-
-        <div style={{ marginTop: '16px' }}>
-          <button onClick={() => setShowExcelExample(!showExcelExample)} style={{ background: 'transparent', border: 'none', color: 'var(--primary-light)', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit', padding: '4px 0' }}>
-            <FiInfo size={14} />
-            {showExcelExample ? 'Ocultar exemplo da tabela Excel' : 'Ver exemplo de como organizar a tabela Excel'}
-          </button>
-          {showExcelExample && (
-            <div style={{ marginTop: '12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '16px', fontSize: '13px' }}>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>A planilha Excel deve ter as seguintes colunas na <strong>primeira linha</strong> (cabeçalho):</p>
-              <div className="table-wrapper" style={{ marginTop: '0' }}>
-                <table><thead><tr><th>Coleta</th><th>Preço de Custo</th><th>Prazo de Entrega</th><th>Repasse</th><th>Lucro</th></tr></thead>
-                <tbody><tr><td>Hemograma Completo</td><td>15,00</td><td>2 dias</td><td>45,00</td><td>30,00</td></tr><tr><td>Bioquímico Renal</td><td>25,00</td><td>3 dias</td><td>70,00</td><td>45,00</td></tr><tr><td>Urinálise</td><td>12,00</td><td>1 dia</td><td>35,00</td><td>23,00</td></tr></tbody></table>
-              </div>
-              <p style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '10px' }}>💡 Os nomes das colunas não precisam ser exatamente iguais. O sistema reconhece variações como &quot;Custo&quot;, &quot;Preço&quot;, &quot;Nome&quot;, etc.</p>
+        <button onClick={() => setShowExcelExample(!showExcelExample)} style={{ background: 'transparent', border: 'none', color: 'var(--primary-light)', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit', padding: '4px 0' }}>
+          <FiInfo size={14} />
+          {showExcelExample ? 'Ocultar exemplo da tabela Excel' : 'Ver exemplo de como organizar a tabela Excel'}
+        </button>
+        {showExcelExample && (
+          <div style={{ marginTop: '12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '16px', fontSize: '13px' }}>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>A planilha Excel deve ter as seguintes colunas na <strong>primeira linha</strong> (cabeçalho):</p>
+            <div className="table-wrapper" style={{ marginTop: '0' }}>
+              <table><thead><tr><th>Coleta</th><th>Preço de Custo</th><th>Prazo de Entrega</th><th>Repasse</th><th>Lucro</th></tr></thead>
+              <tbody><tr><td>Hemograma Completo</td><td>15,00</td><td>2 dias</td><td>45,00</td><td>30,00</td></tr><tr><td>Bioquímico Renal</td><td>25,00</td><td>3 dias</td><td>70,00</td><td>45,00</td></tr><tr><td>Urinálise</td><td>12,00</td><td>1 dia</td><td>35,00</td><td>23,00</td></tr></tbody></table>
             </div>
-          )}
-        </div>
-      </div>
-
-      <div className="card" style={{ marginBottom: '24px' }}>
-        <h2 className="card-title">Registrar Coleta</h2>
-        <div className="inline-form">
-          <div className="form-group"><label className="form-label">Coleta</label><Autocomplete options={coletaOptions} value={selectedColeta} onChange={handleColetaSelect} placeholder="Digite 3 letras para buscar..." /></div>
-          {coletaInfo && (<>
-            <div className="form-group" style={{ minWidth: '120px' }}><label className="form-label">Preço Custo</label><input type="text" className="form-input" value={formatCurrency(coletaInfo.precoCusto)} readOnly /></div>
-            <div className="form-group" style={{ minWidth: '120px' }}><label className="form-label">Prazo</label><input type="text" className="form-input" value={coletaInfo.prazoEntrega} readOnly /></div>
-            <div className="form-group" style={{ minWidth: '120px' }}><label className="form-label">Repasse</label><input type="text" className="form-input" value={formatCurrency(coletaInfo.repasse)} readOnly /></div>
-            <div className="form-group" style={{ minWidth: '100px' }}><label className="form-label">Lucro</label><input type="text" className="form-input" value={formatCurrency(coletaInfo.lucro)} readOnly /></div>
-          </>)}
-          <button className="btn-primary" onClick={addRecord} disabled={!coletaInfo}>Adicionar</button>
-        </div>
-      </div>
-
-      <div className="card">
-        <h2 className="card-title">Coletas do Mês</h2>
-        {records.length === 0 ? (<div className="no-data">Nenhuma coleta registrada neste mês</div>) : (
-          <div className="table-wrapper"><table><thead><tr><th>Data</th><th>Coleta</th><th>Preço Custo</th><th>Prazo</th><th>Repasse</th><th>Lucro</th><th></th></tr></thead>
-          <tbody>{records.map((r) => (<tr key={r.id}><td>{new Date(r.data).toLocaleDateString('pt-BR')}</td><td>{r.coleta}</td><td>{formatCurrency(r.precoCusto)}</td><td>{r.prazoEntrega}</td><td>{formatCurrency(r.repasse)}</td><td>{formatCurrency(r.lucro)}</td><td><button className="delete-btn" onClick={() => deleteRecord(r.id)}><FiTrash2 /></button></td></tr>))}</tbody></table></div>
+            <p style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '10px' }}>💡 Os nomes das colunas não precisam ser exatamente iguais. O sistema reconhece variações como &quot;Custo&quot;, &quot;Preço&quot;, &quot;Nome&quot;, etc.</p>
+          </div>
         )}
-        <div className="total-bar"><span className="total-label">Total a pagar ao {currentLab?.nome || 'laboratório'}</span><span className="total-value">{formatCurrency(total)}</span></div>
+      </div>
+
+      {/* Lab Grid */}
+      <div className="maquineta-grid">
+        {activeLabs.map((lab, idx) => {
+          const labRecords = records[lab.id] || [];
+          const total = labRecords.reduce((sum, r) => sum + (r.precoCusto || 0), 0);
+          const coletaOptions = lab.catalogo?.map(c => c.coleta) || [];
+          const info = coletaInfos[lab.id] || null;
+          const labIndex = labs.findIndex(l => l.id === lab.id);
+
+          return (
+            <div className="maquineta-card" key={lab.id}>
+              <div className="maquineta-header">
+                <div style={{ flex: 1 }}>
+                  <input
+                    type="text" className="form-input" value={lab.nome}
+                    onChange={(e) => handleLabNameChange(labIndex, e.target.value)}
+                    style={{ fontWeight: 600, fontSize: '16px', background: 'transparent', border: 'none', borderBottom: '2px solid var(--border)', borderRadius: 0, padding: '4px 0', width: '100%' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {labs.length > 1 && (
+                    <div className="lab-toggle"><span style={{ fontSize: '12px' }}>Ativo</span><div className={`toggle-switch ${lab.ativo ? 'active' : ''}`} onClick={() => toggleLab(labIndex)} /></div>
+                  )}
+                </div>
+              </div>
+
+              <div className="maquineta-body">
+                <div style={{ marginBottom: '16px' }}>
+                  <ExcelUploader onUpload={(file) => handleExcelUpload(file, lab.id)} label="Upload Tabela" />
+                  {lab.catalogo?.length > 0 && (
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '12px', marginTop: '8px' }}>📋 {lab.catalogo.length} coletas carregadas</p>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'end' }}>
+                  <div style={{ flex: 1, minWidth: '150px' }}>
+                    <Autocomplete options={coletaOptions} value={getForm(lab.id)} onChange={(val) => setFormValue(lab.id, val)} placeholder="Buscar coleta..." />
+                  </div>
+                  <button className="btn-primary" onClick={() => addRecord(lab.id)} disabled={!info} style={{ padding: '8px 16px', fontSize: '13px' }}>+</button>
+                </div>
+
+                {info && (
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px', fontSize: '12px' }}>
+                    <span style={{ background: 'var(--primary-bg)', padding: '4px 10px', borderRadius: '4px' }}>Custo: {formatCurrency(info.precoCusto)}</span>
+                    <span style={{ background: 'var(--primary-bg)', padding: '4px 10px', borderRadius: '4px' }}>Prazo: {info.prazoEntrega}</span>
+                    <span style={{ background: 'var(--success-bg)', color: 'var(--success)', padding: '4px 10px', borderRadius: '4px' }}>Lucro: {formatCurrency(info.lucro)}</span>
+                  </div>
+                )}
+
+                {labRecords.length === 0 ? (
+                  <div className="no-data" style={{ padding: '20px', fontSize: '13px' }}>Nenhuma coleta registrada</div>
+                ) : (
+                  <div className="table-wrapper" style={{ marginTop: 0, maxHeight: '200px', overflowY: 'auto' }}>
+                    <table>
+                      <thead><tr><th>Data</th><th>Coleta</th><th>Custo</th><th></th></tr></thead>
+                      <tbody>{labRecords.map((r) => (
+                        <tr key={r.id}>
+                          <td style={{ fontSize: '12px' }}>{new Date(r.data).toLocaleDateString('pt-BR')}</td>
+                          <td style={{ fontSize: '12px' }}>{r.coleta}</td>
+                          <td style={{ fontSize: '12px' }}>{formatCurrency(r.precoCusto)}</td>
+                          <td><button className="delete-btn" onClick={() => deleteRecord(lab.id, r.id)}><FiTrash2 size={12} /></button></td>
+                        </tr>
+                      ))}</tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="maquineta-footer">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total a pagar</span>
+                  <span style={{ fontSize: '22px', fontWeight: 700, color: 'var(--primary-light)' }}>{formatCurrency(total)}</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </>
   );

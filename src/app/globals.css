@@ -157,6 +157,13 @@ tr:hover td { background: var(--primary-bg); }
 .progress-bar-fill.warning { background: var(--warning); }
 .progress-bar-fill.danger { background: var(--danger); }
 .progress-info { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); margin-top: 6px; }
+.progress-bar { height: 8px; background: var(--bg-input); border-radius: 4px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; background: var(--primary); }
+.progress-fill.warning { background: var(--warning); }
+.progress-fill.danger { background: var(--danger); }
+.limit-alert { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; margin-top: 12px; }
+.limit-alert.warning { background: var(--warning-bg); color: var(--warning); }
+.limit-alert.danger { background: var(--danger-bg); color: var(--danger); animation: pulse-danger 1.5s infinite; }
 
 .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px; margin-top: 24px; }
 .chart-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }

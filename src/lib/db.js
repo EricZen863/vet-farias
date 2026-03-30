@@ -1,6 +1,7 @@
-﻿import { neon } from '@neondatabase/serverless';
+import { neon } from '@neondatabase/serverless';
 
 let sql = null;
+let dbInitialized = false;
 
 function getSQL() {
   if (!sql && process.env.DATABASE_URL) {
@@ -14,6 +15,7 @@ export function isDBAvailable() {
 }
 
 export async function initDB() {
+  if (dbInitialized) return;
   const db = getSQL();
   if (!db) return;
 
@@ -100,18 +102,12 @@ export async function initDB() {
     )
   `;
 
-  await db`
-    INSERT INTO maquinetas (nome, maximo)
-    SELECT 'Maquineta 1', 0 WHERE NOT EXISTS (SELECT 1 FROM maquinetas WHERE id=1);
-  `;
-  await db`
-    INSERT INTO maquinetas (nome, maximo)
-    SELECT 'Maquineta 2', 0 WHERE NOT EXISTS (SELECT 1 FROM maquinetas WHERE id=2);
-  `;
-  await db`
-    INSERT INTO maquinetas (nome, maximo)
-    SELECT 'Maquineta 3', 0 WHERE NOT EXISTS (SELECT 1 FROM maquinetas WHERE id=3);
-  `;
+  const existingMachines = await db`SELECT COUNT(*) as count FROM maquinetas`;
+  if (parseInt(existingMachines[0].count) === 0) {
+    await db`INSERT INTO maquinetas (nome, maximo) VALUES ('Maquineta 1', 0)`;
+    await db`INSERT INTO maquinetas (nome, maximo) VALUES ('Maquineta 2', 0)`;
+    await db`INSERT INTO maquinetas (nome, maximo) VALUES ('Maquineta 3', 0)`;
+  }
 
   await db`
     CREATE TABLE IF NOT EXISTS maquinetas_records (
@@ -133,6 +129,17 @@ export async function initDB() {
       UNIQUE(maquineta_id, month_key)
     )
   `;
+
+  // Cleanup: remove duplicate maquinetas (keep only the ones with the lowest id per name)
+  await db`
+    DELETE FROM maquinetas WHERE id NOT IN (
+      SELECT MIN(id) FROM maquinetas GROUP BY nome
+    ) AND id NOT IN (
+      SELECT DISTINCT maquineta_id FROM maquinetas_records
+    )
+  `;
+
+  dbInitialized = true;
 }
 
 export async function query(queryStr, params = []) {

@@ -69,9 +69,12 @@ export async function initDB() {
       nome VARCHAR(200) NOT NULL,
       procedimento VARCHAR(300),
       valor DECIMAL(10,2) DEFAULT 0,
+      status VARCHAR(10) DEFAULT 'FALTA',
       created_at TIMESTAMP DEFAULT NOW()
     )
   `;
+
+  await db`ALTER TABLE cirurgioes_records ADD COLUMN IF NOT EXISTS status VARCHAR(10) DEFAULT 'FALTA'`;
 
   await db`
     CREATE TABLE IF NOT EXISTS imagem_records (
@@ -80,9 +83,12 @@ export async function initDB() {
       nome VARCHAR(200) NOT NULL,
       exame VARCHAR(300),
       valor DECIMAL(10,2) DEFAULT 0,
+      status VARCHAR(10) DEFAULT 'FALTA',
       created_at TIMESTAMP DEFAULT NOW()
     )
   `;
+
+  await db`ALTER TABLE imagem_records ADD COLUMN IF NOT EXISTS status VARCHAR(10) DEFAULT 'FALTA'`;
 
   await db`
     CREATE TABLE IF NOT EXISTS gastos_records (

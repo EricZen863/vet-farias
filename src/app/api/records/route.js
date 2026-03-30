@@ -31,7 +31,8 @@ export async function GET(request) {
     const rows = await sql`SELECT * FROM cirurgioes_records WHERE month_key = ${month} ORDER BY created_at`;
     return NextResponse.json(rows.map(r => ({
       id: r.id, data: r.created_at, nome: r.nome,
-      procedimento: r.procedimento, valor: parseFloat(r.valor)
+      procedimento: r.procedimento, valor: parseFloat(r.valor),
+      status: r.status || 'FALTA'
     })));
   }
 
@@ -39,7 +40,8 @@ export async function GET(request) {
     const rows = await sql`SELECT * FROM imagem_records WHERE month_key = ${month} ORDER BY created_at`;
     return NextResponse.json(rows.map(r => ({
       id: r.id, data: r.created_at, nome: r.nome,
-      exame: r.exame, valor: parseFloat(r.valor)
+      exame: r.exame, valor: parseFloat(r.valor),
+      status: r.status || 'FALTA'
     })));
   }
 
@@ -76,27 +78,29 @@ export async function POST(request) {
 
   if (module === 'cirurgioes') {
     const rows = await sql`
-      INSERT INTO cirurgioes_records (month_key, nome, procedimento, valor)
-      VALUES (${month}, ${body.nome}, ${body.procedimento}, ${body.valor})
+      INSERT INTO cirurgioes_records (month_key, nome, procedimento, valor, status)
+      VALUES (${month}, ${body.nome}, ${body.procedimento}, ${body.valor}, 'FALTA')
       RETURNING *
     `;
     const r = rows[0];
     return NextResponse.json({
       id: r.id, data: r.created_at, nome: r.nome,
-      procedimento: r.procedimento, valor: parseFloat(r.valor)
+      procedimento: r.procedimento, valor: parseFloat(r.valor),
+      status: r.status || 'FALTA'
     });
   }
 
   if (module === 'imagem') {
     const rows = await sql`
-      INSERT INTO imagem_records (month_key, nome, exame, valor)
-      VALUES (${month}, ${body.nome}, ${body.exame}, ${body.valor})
+      INSERT INTO imagem_records (month_key, nome, exame, valor, status)
+      VALUES (${month}, ${body.nome}, ${body.exame}, ${body.valor}, 'FALTA')
       RETURNING *
     `;
     const r = rows[0];
     return NextResponse.json({
       id: r.id, data: r.created_at, nome: r.nome,
-      exame: r.exame, valor: parseFloat(r.valor)
+      exame: r.exame, valor: parseFloat(r.valor),
+      status: r.status || 'FALTA'
     });
   }
 
@@ -115,18 +119,58 @@ export async function POST(request) {
   return NextResponse.json({ error: 'Invalid module' }, { status: 400 });
 }
 
+export async function PATCH(request) {
+  if (!isDBAvailable()) return NextResponse.json({ error: 'No DB' }, { status: 503 });
+  await initDB();
+  const sql = getSQL();
+  const body = await request.json();
+  const { module, id, status } = body;
+
+  if (module === 'cirurgioes') {
+    await sql`UPDATE cirurgioes_records SET status = ${status} WHERE id = ${id}`;
+    return NextResponse.json({ success: true });
+  }
+
+  if (module === 'imagem') {
+    await sql`UPDATE imagem_records SET status = ${status} WHERE id = ${id}`;
+    return NextResponse.json({ success: true });
+  }
+
+  return NextResponse.json({ error: 'Invalid module' }, { status: 400 });
+}
+
 export async function DELETE(request) {
   if (!isDBAvailable()) return NextResponse.json({ error: 'No DB' }, { status: 503 });
   await initDB();
   const sql = getSQL();
   const { searchParams } = new URL(request.url);
   const module = searchParams.get('module');
-  const id = parseInt(searchParams.get('id'));
+  const id = searchParams.get('id');
+  const action = searchParams.get('action');
 
-  if (module === 'lab') await sql`DELETE FROM lab_records WHERE id = ${id}`;
-  if (module === 'cirurgioes') await sql`DELETE FROM cirurgioes_records WHERE id = ${id}`;
-  if (module === 'imagem') await sql`DELETE FROM imagem_records WHERE id = ${id}`;
-  if (module === 'gastos') await sql`DELETE FROM gastos_records WHERE id = ${id}`;
+  // Cleanup: delete records older than 4 years
+  if (action === 'cleanup') {
+    const now = new Date();
+    const cutoffYear = now.getFullYear() - 4;
+    const cutoffMonth = String(now.getMonth() + 1).padStart(2, '0');
+    const cutoffKey = `${cutoffYear}-${cutoffMonth}`;
+
+    const r1 = await sql`DELETE FROM lab_records WHERE month_key < ${cutoffKey}`;
+    const r2 = await sql`DELETE FROM cirurgioes_records WHERE month_key < ${cutoffKey}`;
+    const r3 = await sql`DELETE FROM imagem_records WHERE month_key < ${cutoffKey}`;
+    const r4 = await sql`DELETE FROM gastos_records WHERE month_key < ${cutoffKey}`;
+    const r5 = await sql`DELETE FROM maquinetas_records WHERE month_key < ${cutoffKey}`;
+    const r6 = await sql`DELETE FROM maquinetas_obs WHERE month_key < ${cutoffKey}`;
+
+    const total = (r1.count || 0) + (r2.count || 0) + (r3.count || 0) + (r4.count || 0) + (r5.count || 0) + (r6.count || 0);
+    return NextResponse.json({ success: true, deleted: total, cutoffKey });
+  }
+
+  const recordId = parseInt(id);
+  if (module === 'lab') await sql`DELETE FROM lab_records WHERE id = ${recordId}`;
+  if (module === 'cirurgioes') await sql`DELETE FROM cirurgioes_records WHERE id = ${recordId}`;
+  if (module === 'imagem') await sql`DELETE FROM imagem_records WHERE id = ${recordId}`;
+  if (module === 'gastos') await sql`DELETE FROM gastos_records WHERE id = ${recordId}`;
 
   return NextResponse.json({ success: true });
 }

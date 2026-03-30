@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useAuth } from '../../components/AuthProvider';
-import { FiLock, FiUser, FiCheck, FiAlertCircle } from 'react-icons/fi';
+import { FiLock, FiUser, FiCheck, FiAlertCircle, FiTrash2 } from 'react-icons/fi';
 
 export default function ConfiguracoesPage() {
   const { isAuthenticated, loading, changeCredentials } = useAuth();
@@ -11,6 +11,8 @@ export default function ConfiguracoesPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [status, setStatus] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [cleanupStatus, setCleanupStatus] = useState(null);
+  const [cleaning, setCleaning] = useState(false);
 
   if (loading || !isAuthenticated) return null;
 
@@ -37,13 +39,36 @@ export default function ConfiguracoesPage() {
     }
   };
 
+  const handleCleanup = async () => {
+    const now = new Date();
+    const cutoffYear = now.getFullYear() - 4;
+    const confirmMsg = `Tem certeza? Isso vai apagar PERMANENTEMENTE todos os registros anteriores a ${cutoffYear}. Esta ação não pode ser desfeita.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    setCleaning(true);
+    setCleanupStatus(null);
+    try {
+      const res = await fetch('/api/records?action=cleanup', { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        setCleanupStatus({ type: 'success', message: `Limpeza concluída! Registros anteriores a ${data.cutoffKey} foram removidos.` });
+      } else {
+        setCleanupStatus({ type: 'error', message: 'Erro ao realizar a limpeza.' });
+      }
+    } catch {
+      setCleanupStatus({ type: 'error', message: 'Erro de conexão ao realizar a limpeza.' });
+    }
+    setCleaning(false);
+  };
+
   return (
     <>
       <div className="page-header">
         <h1 className="page-title">Configurações</h1>
         <p className="page-subtitle">Gerencie suas credenciais de acesso</p>
       </div>
-      <div className="card" style={{ maxWidth: '520px' }}>
+
+      <div className="card" style={{ maxWidth: '520px', marginBottom: '24px' }}>
         <h2 className="card-title"><FiLock size={18} /> Alterar Login e Senha</h2>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div className="form-group">
@@ -88,6 +113,29 @@ export default function ConfiguracoesPage() {
         <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '20px', lineHeight: '1.6' }}>
           💡 As credenciais padrão são <strong>admin / vetfarias2024</strong>. Caso esqueça suas credenciais alteradas, entre em contato com o administrador do sistema.
         </p>
+      </div>
+
+      <div className="card" style={{ maxWidth: '520px' }}>
+        <h2 className="card-title"><FiTrash2 size={18} /> Manutenção do Banco de Dados</h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '16px', lineHeight: '1.6' }}>
+          Remove permanentemente todos os registros com mais de <strong>4 anos</strong> de todas as seções do sistema (Laboratório, Cirurgiões, Imagem, Gastos e Maquinetas).
+        </p>
+        <div style={{ background: 'var(--danger-bg)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 'var(--radius-sm)', padding: '12px 16px', marginBottom: '16px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+          <FiAlertCircle size={16} style={{ color: 'var(--danger)', flexShrink: 0, marginTop: '2px' }} />
+          <p style={{ color: 'var(--danger)', fontSize: '13px', lineHeight: '1.5' }}>
+            <strong>Atenção:</strong> Esta ação é <strong>irreversível</strong>. Os dados apagados não poderão ser recuperados. Use com cautela.
+          </p>
+        </div>
+        {cleanupStatus && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 16px', borderRadius: 'var(--radius-sm)', fontSize: '13px', marginBottom: '16px', background: cleanupStatus.type === 'success' ? 'var(--success-bg)' : 'var(--danger-bg)', color: cleanupStatus.type === 'success' ? 'var(--success)' : 'var(--danger)', border: `1px solid ${cleanupStatus.type === 'success' ? 'rgba(74,222,128,0.3)' : 'rgba(248,113,113,0.3)'}` }}>
+            {cleanupStatus.type === 'success' ? <FiCheck size={16} /> : <FiAlertCircle size={16} />}
+            {cleanupStatus.message}
+          </div>
+        )}
+        <button className="btn-danger" onClick={handleCleanup} disabled={cleaning} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', fontSize: '14px' }}>
+          <FiTrash2 size={16} />
+          {cleaning ? 'Apagando...' : 'Apagar dados com mais de 4 anos'}
+        </button>
       </div>
     </>
   );

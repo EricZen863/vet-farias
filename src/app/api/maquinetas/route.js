@@ -72,6 +72,11 @@ export async function POST(request) {
     return NextResponse.json({ success: true });
   }
 
+  if (action === 'updateNota') {
+    await sql`UPDATE maquinetas_records SET nota = ${body.nota} WHERE id = ${body.id}`;
+    return NextResponse.json({ success: true });
+  }
+
   if (action === 'updateObs') {
     await sql`
       INSERT INTO maquinetas_obs (maquineta_id, month_key, texto)

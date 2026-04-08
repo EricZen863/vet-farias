@@ -79,6 +79,19 @@ export default function MaquinetasPage() {
     setRecords(prev => ({ ...prev, [machineId]: (prev[machineId] || []).filter(r => r.id !== recordId) }));
   };
 
+  const updateNota = async (machineId, recordId, nota) => {
+    await fetch('/api/maquinetas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'updateNota', id: recordId, nota }) });
+    setRecords(prev => ({ ...prev, [machineId]: (prev[machineId] || []).map(r => r.id === recordId ? { ...r, nota } : r) }));
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    // dateStr is YYYY-MM-DD, convert to DD/MM/YYYY
+    const parts = dateStr.split('-');
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return dateStr;
+  };
+
   const updateObs = async (machineId, texto) => {
     setObservations(prev => ({ ...prev, [machineId]: texto }));
     await fetch('/api/maquinetas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'updateObs', machineId, month: monthKey, texto }) });
@@ -174,8 +187,18 @@ export default function MaquinetasPage() {
                       <thead><tr><th>Data</th><th>Nota</th><th>Valor</th><th></th></tr></thead>
                       <tbody>{mRecords.map((r) => (
                         <tr key={r.id}>
-                          <td style={{ fontSize: '12px' }}>{r.data}</td>
-                          <td style={{ fontSize: '12px' }}>{r.nota}</td>
+                          <td style={{ fontSize: '12px' }}>{formatDate(r.data)}</td>
+                          <td style={{ fontSize: '12px', padding: '4px' }}>
+                            <select
+                              value={r.nota}
+                              onChange={(e) => updateNota(m.id, r.id, e.target.value)}
+                              style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border)', borderRadius: '4px', padding: '3px 6px', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}
+                            >
+                              <option>N/A</option>
+                              <option>OK</option>
+                              <option>Falta</option>
+                            </select>
+                          </td>
                           <td style={{ fontSize: '12px' }}>{formatCurrency(r.valor)}</td>
                           <td><button className="delete-btn" onClick={() => deleteRecord(m.id, r.id)}><FiTrash2 size={12} /></button></td>
                         </tr>

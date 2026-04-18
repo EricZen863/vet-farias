@@ -26,7 +26,10 @@ npm install
 npm run dev
 ```
 
+As credenciais padrão para acessar o sistema são:
 
+Usuário: admin
+Senha: vetfarias2024
 
 ## Deploy
 

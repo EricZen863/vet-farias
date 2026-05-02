@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { initDB, getSQL, isDBAvailable } from '../../../lib/db';
 
 export async function POST(request) {
@@ -24,6 +24,18 @@ export async function POST(request) {
       return NextResponse.json({ success: true });
     }
     return NextResponse.json({ success: false, error: 'Usuário ou senha inválidos' });
+  }
+
+  if (action === 'loginFuncionario') {
+    await initFolhaDePonto();
+    const rows = await sql`SELECT id, nome, email, profissao, carga_horaria_semanal, ativo FROM funcionarios WHERE email = ${username} AND senha = ${password}`;
+    if (rows.length > 0) {
+      if (!rows[0].ativo) {
+        return NextResponse.json({ success: false, error: 'Conta inativa' });
+      }
+      return NextResponse.json({ success: true, user: rows[0] });
+    }
+    return NextResponse.json({ success: false, error: 'Email ou senha inválidos' });
   }
 
   if (action === 'change') {

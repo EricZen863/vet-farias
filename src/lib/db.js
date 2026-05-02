@@ -148,6 +148,48 @@ export async function initDB() {
   dbInitialized = true;
 }
 
+// Separate init for folha de ponto — always runs to ensure tables exist
+let folhaInitialized = false;
+export async function initFolhaDePonto() {
+  if (folhaInitialized) return;
+  const db = getSQL();
+  if (!db) return;
+
+  await db`
+    CREATE TABLE IF NOT EXISTS funcionarios (
+      id SERIAL PRIMARY KEY,
+      nome VARCHAR(200) NOT NULL,
+      cpf VARCHAR(14) NOT NULL UNIQUE,
+      profissao VARCHAR(200),
+      email VARCHAR(200) NOT NULL UNIQUE,
+      senha VARCHAR(200) NOT NULL,
+      carga_horaria_semanal INTEGER DEFAULT 44,
+      jornada JSONB DEFAULT '{}',
+      ativo BOOLEAN DEFAULT true,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `;
+
+  await db`
+    CREATE TABLE IF NOT EXISTS registros_ponto (
+      id SERIAL PRIMARY KEY,
+      funcionario_id INTEGER NOT NULL REFERENCES funcionarios(id) ON DELETE CASCADE,
+      data DATE NOT NULL,
+      tipo_dia VARCHAR(20) DEFAULT 'normal',
+      entrada TIME,
+      saida_almoco TIME,
+      volta_almoco TIME,
+      saida TIME,
+      horas_extras DECIMAL(5,2) DEFAULT 0,
+      observacao TEXT,
+      created_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE(funcionario_id, data)
+    )
+  `;
+
+  folhaInitialized = true;
+}
+
 export async function query(queryStr, params = []) {
   const db = getSQL();
   if (!db) throw new Error('Database not available');
@@ -155,3 +197,4 @@ export async function query(queryStr, params = []) {
 }
 
 export { getSQL };
+

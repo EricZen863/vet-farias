@@ -1,10 +1,16 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../components/AuthProvider';
 import { FiLock, FiUser } from 'react-icons/fi';
+import { useSearchParams } from 'next/navigation';
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('');
+  const searchParams = useSearchParams();
+  const initialType = searchParams.get('type') === 'funcionario' ? 'funcionario' : 'admin';
+  const initialEmail = searchParams.get('email') || '';
+
+  const [loginType, setLoginType] = useState(initialType);
+  const [username, setUsername] = useState(initialEmail);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -16,9 +22,9 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const success = await login(username, password);
-    if (!success) {
-      setError('Usuário ou senha inválidos');
+    const result = await login(username, password, loginType);
+    if (!result.success) {
+      setError(result.error || 'Usuário ou senha inválidos');
     }
     setLoading(false);
   };
@@ -31,11 +37,36 @@ export default function LoginPage() {
           <h1>Vet Farias</h1>
           <p>Sistema de Gestão Interna</p>
         </div>
+
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+          <button 
+            className={`btn-primary ${loginType === 'admin' ? '' : 'btn-outline'}`}
+            style={{ flex: 1, padding: '8px', fontSize: '14px', opacity: loginType === 'admin' ? 1 : 0.7 }}
+            onClick={() => { setLoginType('admin'); setUsername(''); setPassword(''); setError(''); }}
+          >
+            Administrador
+          </button>
+          <button 
+            className={`btn-primary ${loginType === 'funcionario' ? '' : 'btn-outline'}`}
+            style={{ flex: 1, padding: '8px', fontSize: '14px', opacity: loginType === 'funcionario' ? 1 : 0.7 }}
+            onClick={() => { setLoginType('funcionario'); setUsername(''); setPassword(''); setError(''); }}
+          >
+            Funcionário
+          </button>
+        </div>
+
         <form className="login-form" onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">Usuário</label>
+            <label className="form-label">{loginType === 'admin' ? 'Usuário' : 'E-mail'}</label>
             <div style={{ position: 'relative' }}>
-              <input type="text" className="form-input" placeholder="Digite seu usuário" value={username} onChange={(e) => setUsername(e.target.value)} style={{ paddingLeft: '40px' }} />
+              <input 
+                type={loginType === 'admin' ? "text" : "email"} 
+                className="form-input" 
+                placeholder={loginType === 'admin' ? "Digite seu usuário" : "Digite seu e-mail"} 
+                value={username} 
+                onChange={(e) => setUsername(e.target.value)} 
+                style={{ paddingLeft: '40px' }} 
+              />
               <FiUser style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
             </div>
           </div>

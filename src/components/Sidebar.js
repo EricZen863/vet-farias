@@ -1,26 +1,33 @@
-﻿'use client';
+'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from './AuthProvider';
-import { FiHome, FiDroplet, FiScissors, FiMonitor, FiDollarSign, FiCreditCard, FiSettings, FiLogOut, FiMenu, FiX } from 'react-icons/fi';
+import { FiHome, FiDroplet, FiScissors, FiMonitor, FiDollarSign, FiCreditCard, FiSettings, FiLogOut, FiMenu, FiX, FiCalendar, FiClock } from 'react-icons/fi';
 import { useState } from 'react';
 
-const menuItems = [
+const adminMenuItems = [
   { href: '/', label: 'Dashboard', icon: FiHome },
   { href: '/laboratorio', label: 'Laboratório', icon: FiDroplet },
   { href: '/volantes-cirurgioes', label: 'Volantes Cirurgiões', icon: FiScissors },
   { href: '/volantes-imagem', label: 'Volantes Imagem', icon: FiMonitor },
   { href: '/gastos', label: 'Gastos Diversos', icon: FiDollarSign },
   { href: '/maquinetas', label: 'Maquinetas', icon: FiCreditCard },
+  { href: '/folha-de-ponto', label: 'Folha de Ponto', icon: FiCalendar },
   { href: '/configuracoes', label: 'Configurações', icon: FiSettings },
+];
+
+const funcMenuItems = [
+  { href: '/checkin', label: 'Bater Ponto', icon: FiClock },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { logout, isAuthenticated } = useAuth();
+  const { logout, isAuthenticated, userType, user } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   if (!isAuthenticated) return null;
+
+  const menuItems = userType === 'funcionario' ? funcMenuItems : adminMenuItems;
 
   return (
     <>
@@ -33,9 +40,14 @@ export default function Sidebar() {
             <span className="logo-icon">🐾</span>
             <div>
               <h1 className="logo-title">Vet Farias</h1>
-              <p className="logo-subtitle">Gestão Interna</p>
+              <p className="logo-subtitle">{userType === 'funcionario' ? 'Ponto do Funcionário' : 'Gestão Interna'}</p>
             </div>
           </div>
+          {userType === 'funcionario' && user && (
+            <div style={{ marginTop: '10px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+              Olá, {user.nome.split(' ')[0]}
+            </div>
+          )}
         </div>
         <nav className="sidebar-nav">
           {menuItems.map((item) => {

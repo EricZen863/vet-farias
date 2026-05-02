@@ -10,6 +10,8 @@ export default function CheckinPage() {
   const [message, setMessage] = useState('');
   const [time, setTime] = useState(new Date());
 
+  const [tipoDia, setTipoDia] = useState('normal');
+
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
@@ -50,7 +52,7 @@ export default function CheckinPage() {
         await fetch('/api/ponto', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'iniciarDia', funcionarioId: user.id, data: hoje, tipoDia: 'normal' })
+          body: JSON.stringify({ action: 'iniciarDia', funcionarioId: user.id, data: hoje, tipoDia: tipoDia })
         });
       }
 
@@ -99,6 +101,26 @@ export default function CheckinPage() {
           <p>Carregando...</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {!registro && (
+              <div className="form-group" style={{ textAlign: 'left', marginBottom: '8px' }}>
+                <label className="form-label">Tipo de Dia</label>
+                <select 
+                  className="form-input" 
+                  value={tipoDia} 
+                  onChange={(e) => setTipoDia(e.target.value)}
+                >
+                  <option value="normal">Dia Normal</option>
+                  <option value="folga">Dia de Folga</option>
+                  <option value="feriado">Feriado</option>
+                </select>
+              </div>
+            )}
+            {registro && (
+              <div style={{ textAlign: 'left', marginBottom: '8px', fontSize: '14px', color: 'var(--text-secondary)' }}>
+                Tipo de Dia: <strong style={{color: 'var(--text)', textTransform: 'capitalize'}}>{registro.tipo_dia || 'Normal'}</strong>
+              </div>
+            )}
+
             <PunchButton 
               label="1. Entrada" 
               time={registro?.entrada} 

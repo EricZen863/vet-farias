@@ -9,14 +9,7 @@ export default function RelatoriosPontoPage() {
   const [mesAtual, setMesAtual] = useState(new Date().toISOString().substring(0, 7)); // YYYY-MM
   const [registros, setRegistros] = useState([]);
   const [loading, setLoading] = useState(false);
-  
-  const [editingRecord, setEditingRecord] = useState(null);
-
-  useEffect(() => {
-    if (userType === 'admin') {
-      loadRegistros();
-    }
-  }, [userType, mesAtual]);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
 
   const loadRegistros = async () => {
     try {
@@ -61,23 +54,83 @@ export default function RelatoriosPontoPage() {
     }
   };
 
-  const handleExportCSV = () => {
-    const headers = ['Funcionario', 'CPF', 'Data', 'Tipo', 'Entrada', 'Saida Almoco', 'Volta Almoco', 'Saida', 'Horas Extras', 'Obs'];
-    const rows = registros.map(r => [
-      r.nome, r.cpf, new Date(r.data).toLocaleDateString('pt-BR'), r.tipo_dia,
-      r.entrada || '-', r.saida_almoco || '-', r.volta_almoco || '-', r.saida || '-',
-      r.horas_extras, r.observacao || ''
-    ]);
+  const handlePrintPDF = (funcName, registrosDoFunc, tipo) => {
+    const recordsToPrint = tipo === 'extras' 
+      ? registrosDoFunc.filter(r => r.horas_extras > 0 || r.tipo_dia === 'feriado' || r.tipo_dia === 'folga' || r.tipo_dia === 'falta') 
+      : registrosDoFunc;
 
-    let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `ponto_${mesAtual}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const printWindow = window.open('', '_blank');
+    const html = `
+      <html>
+        <head>
+          <title>Relatório de Ponto - ${funcName}</title>
+          <style>
+            body { font-family: sans-serif; padding: 20px; color: #333; }
+            h1 { font-size: 20px; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f5f5f5; }
+            .extra { color: #d32f2f; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <h1>Relatório de Ponto - ${funcName} - ${mesAtual}</h1>
+          <p><strong>Tipo de Relatório:</strong> ${tipo === 'todos' ? 'Todos os dias registrados no mês' : 'Apenas Horas Extras, Feriados e Folgas Trabalhadas'}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Tipo</th>
+                <th>Entrada</th>
+                <th>Saída Almoço</th>
+                <th>Volta Almoço</th>
+                <th>Saída</th>
+                <th>H. Extras</th>
+                <th>Observação</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${recordsToPrint.length > 0 ? recordsToPrint.map(r => `
+                <tr>
+                  <td>${new Date(r.data).toLocaleDateString('pt-BR')}</td>
+                  <td style="text-transform: capitalize;">${r.tipo_dia || 'Normal'}</td>
+                  <td>${r.entrada ? r.entrada.substring(0,5) : '-'}</td>
+                  <td>${r.saida_almoco ? r.saida_almoco.substring(0,5) : '-'}</td>
+                  <td>${r.volta_almoco ? r.volta_almoco.substring(0,5) : '-'}</td>
+                  <td>${r.saida ? r.saida.substring(0,5) : '-'}</td>
+                  <td class="${r.horas_extras > 0 ? 'extra' : ''}">${r.horas_extras}h</td>
+                  <td>${r.observacao || ''}</td>
+                </tr>
+              `).join('') : '<tr><td colspan="8" style="text-align: center;">Nenhum registro encontrado para este filtro.</td></tr>'}
+            </tbody>
+          </table>
+          <script>
+            window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }
+          </script>
+        </body>
+      </html>
+    `;
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
+
+  const groupedRegistros = registros.reduce((acc, curr) => {
+    if (!acc[curr.funcionario_id]) {
+      acc[curr.funcionario_id] = { id: curr.funcionario_id, nome: curr.nome, cpf: curr.cpf, records: [] };
+    }
+    acc[curr.funcionario_id].records.push(curr);
+    return acc;
+  }, {});
+
+  const employeeList = Object.values(groupedRegistros).sort((a, b) => a.nome.localeCompare(b.nome));
+
+  // Reload selected employee records when registos change
+  useEffect(() => {
+    if (selectedEmployee) {
+      const updated = employeeList.find(e => e.id === selectedEmployee.id);
+      if (updated) setSelectedEmployee(updated);
+    }
+  }, [registros]);
 
   if (userType !== 'admin') return <div className="page-container">Acesso Negado</div>;
 
@@ -89,7 +142,7 @@ export default function RelatoriosPontoPage() {
             <FiArrowLeft /> Voltar para Funcionários
           </Link>
           <h1 className="page-title">Relatórios de Ponto</h1>
-          <p className="page-description">Visualize os registros do mês e gere exportações.</p>
+          <p className="page-description">Visualize os registros do mês e gere exportações em PDF.</p>
         </div>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <input 
@@ -98,59 +151,89 @@ export default function RelatoriosPontoPage() {
             value={mesAtual} 
             onChange={(e) => setMesAtual(e.target.value)} 
           />
-          <button className="btn-primary" onClick={handleExportCSV} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <FiDownload /> Exportar Excel/CSV
-          </button>
         </div>
       </div>
 
-      <div className="card">
+      <div className="card-grid">
         {loading ? (
           <p>Carregando...</p>
+        ) : employeeList.length === 0 ? (
+          <div className="no-data" style={{ gridColumn: '1 / -1' }}>Nenhum registro encontrado para este mês.</div>
         ) : (
-          <div className="table-responsive">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Data</th>
-                  <th>Funcionário</th>
-                  <th>Entrada</th>
-                  <th>Saída Almoço</th>
-                  <th>Volta Almoço</th>
-                  <th>Saída</th>
-                  <th>H. Extras</th>
-                  <th>Observação</th>
-                  <th>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {registros.map(r => (
-                  <tr key={r.id}>
-                    <td>{new Date(r.data).toLocaleDateString('pt-BR')} <br/><span style={{fontSize: '11px', color: 'var(--text-secondary)'}}>{r.tipo_dia}</span></td>
-                    <td style={{ fontWeight: 500 }}>{r.nome}</td>
-                    <td>{r.entrada ? r.entrada.substring(0,5) : '-'}</td>
-                    <td>{r.saida_almoco ? r.saida_almoco.substring(0,5) : '-'}</td>
-                    <td>{r.volta_almoco ? r.volta_almoco.substring(0,5) : '-'}</td>
-                    <td>{r.saida ? r.saida.substring(0,5) : '-'}</td>
-                    <td><strong style={{ color: r.horas_extras > 0 ? 'var(--primary)' : 'inherit' }}>{r.horas_extras}h</strong></td>
-                    <td style={{ maxWidth: '150px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.observacao}</td>
-                    <td>
-                      <button className="icon-btn edit" onClick={() => handleOpenEdit(r)} title="Editar">
-                        <FiEdit2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {registros.length === 0 && (
-                  <tr>
-                    <td colSpan="9" style={{ textAlign: 'center', padding: '20px' }}>Nenhum registro encontrado para este mês.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          employeeList.map(emp => {
+            const totalExtras = emp.records.reduce((sum, r) => sum + (parseFloat(r.horas_extras) || 0), 0);
+            return (
+              <div key={emp.id} className="card" style={{ cursor: 'pointer', position: 'relative' }} onClick={() => setSelectedEmployee(emp)}>
+                <h3 style={{ fontSize: '18px', color: 'var(--text)', marginBottom: '8px' }}>{emp.nome}</h3>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>CPF: {emp.cpf}</p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px' }}>
+                  <span>Registros: <strong>{emp.records.length}</strong></span>
+                  <span style={{ color: totalExtras > 0 ? 'var(--primary-light)' : 'inherit' }}>Extras: <strong>{totalExtras}h</strong></span>
+                </div>
+              </div>
+            );
+          })
         )}
       </div>
+
+      {selectedEmployee && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '900px', width: '95%' }}>
+            <div className="modal-header">
+              <h2>Relatório Mensal - {selectedEmployee.nome}</h2>
+              <button className="close-btn" onClick={() => setSelectedEmployee(null)}>&times;</button>
+            </div>
+            
+            <div className="modal-body">
+              <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+                <button className="btn-primary" onClick={() => handlePrintPDF(selectedEmployee.nome, selectedEmployee.records, 'todos')} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FiDownload /> Imprimir Todos os Dias
+                </button>
+                <button className="btn-secondary" onClick={() => handlePrintPDF(selectedEmployee.nome, selectedEmployee.records, 'extras')} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FiDownload /> Imprimir Apenas Extras/Feriados
+                </button>
+              </div>
+
+              <div className="table-responsive">
+                <table className="table" style={{ width: '100%', fontSize: '13px' }}>
+                  <thead>
+                    <tr>
+                      <th>Data</th>
+                      <th>Tipo</th>
+                      <th>Entrada</th>
+                      <th>Saída Alm.</th>
+                      <th>Volta Alm.</th>
+                      <th>Saída</th>
+                      <th>H. Extras</th>
+                      <th>Obs</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedEmployee.records.sort((a, b) => new Date(a.data) - new Date(b.data)).map(r => (
+                      <tr key={r.id}>
+                        <td>{new Date(r.data).toLocaleDateString('pt-BR')}</td>
+                        <td style={{ textTransform: 'capitalize' }}>{r.tipo_dia || 'Normal'}</td>
+                        <td>{r.entrada ? r.entrada.substring(0,5) : '-'}</td>
+                        <td>{r.saida_almoco ? r.saida_almoco.substring(0,5) : '-'}</td>
+                        <td>{r.volta_almoco ? r.volta_almoco.substring(0,5) : '-'}</td>
+                        <td>{r.saida ? r.saida.substring(0,5) : '-'}</td>
+                        <td><strong style={{ color: r.horas_extras > 0 ? 'var(--primary)' : 'inherit' }}>{r.horas_extras}h</strong></td>
+                        <td style={{ maxWidth: '100px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={r.observacao}>{r.observacao}</td>
+                        <td>
+                          <button className="icon-btn edit" onClick={(e) => { e.stopPropagation(); handleOpenEdit(r); }} title="Editar">
+                            <FiEdit2 size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {editingRecord && (
         <div className="modal-overlay">

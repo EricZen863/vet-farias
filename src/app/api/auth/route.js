@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { initDB, getSQL, isDBAvailable } from '../../../lib/db';
+import { initDB, getSQL, isDBAvailable, initFolhaDePonto } from '../../../lib/db';
 
 export async function POST(request) {
   const body = await request.json();

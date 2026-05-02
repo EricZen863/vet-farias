@@ -1,5 +1,5 @@
 'use client';
-import { useAuth } from '../../components/AuthProvider';
+import { useAuth } from '../../../components/AuthProvider';
 import { QRCodeSVG } from 'qrcode.react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';

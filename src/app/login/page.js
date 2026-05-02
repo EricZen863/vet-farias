@@ -1,10 +1,10 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, Suspense } from 'react';
 import { useAuth } from '../../components/AuthProvider';
 import { FiLock, FiUser } from 'react-icons/fi';
 import { useSearchParams } from 'next/navigation';
 
-export default function LoginPage() {
+function LoginForm() {
   const searchParams = useSearchParams();
   const initialType = searchParams.get('type') === 'funcionario' ? 'funcionario' : 'admin';
   const initialEmail = searchParams.get('email') || '';
@@ -84,5 +84,13 @@ export default function LoginPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="login-page">Carregando...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }

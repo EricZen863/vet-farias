@@ -10,6 +10,13 @@ export default function RelatoriosPontoPage() {
   const [registros, setRegistros] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [editingRecord, setEditingRecord] = useState(null);
+
+  useEffect(() => {
+    if (userType === 'admin') {
+      loadRegistros();
+    }
+  }, [userType, mesAtual]);
 
   const loadRegistros = async () => {
     try {

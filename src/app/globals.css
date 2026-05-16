@@ -64,7 +64,7 @@ html, body {
 .mobile-menu-btn { display: none; position: fixed; top: 16px; left: 16px; z-index: 200; background: var(--bg-card); border: 1px solid var(--border); color: var(--text); padding: 10px; border-radius: var(--radius-sm); cursor: pointer; }
 .sidebar-overlay { display: none; }
 
-.login-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--bg) 0%, #1a1028 50%, var(--bg) 100%); padding: 20px; }
+.login-page { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--bg) 0%, #1a1028 50%, var(--bg) 100%); padding: 20px; z-index: 50; }
 .login-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 48px 40px; width: 100%; max-width: 420px; box-shadow: var(--shadow-lg); }
 .login-logo { text-align: center; margin-bottom: 40px; }
 .login-logo .logo-icon { font-size: 48px; display: block; margin-bottom: 12px; }

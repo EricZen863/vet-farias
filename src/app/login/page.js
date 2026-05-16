@@ -30,7 +30,7 @@ function LoginForm() {
   };
 
   return (
-    <div className="login-page" style={{ marginLeft: 'calc(var(--sidebar-width) * -1)' }}>
+    <div className="login-page">
       <div className="login-card">
         <div className="login-logo">
           <span className="logo-icon">🐾</span>

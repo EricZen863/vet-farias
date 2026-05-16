@@ -164,11 +164,17 @@ export async function initFolhaDePonto() {
       email VARCHAR(200) NOT NULL UNIQUE,
       senha VARCHAR(200) NOT NULL,
       carga_horaria_semanal INTEGER DEFAULT 44,
+      carga_horaria_contrato INTEGER DEFAULT 44,
+      tipo_folha VARCHAR(20) DEFAULT 'normal',
       jornada JSONB DEFAULT '{}',
       ativo BOOLEAN DEFAULT true,
       created_at TIMESTAMP DEFAULT NOW()
     )
   `;
+
+  // Add columns if they don't exist (for existing databases)
+  await db`ALTER TABLE funcionarios ADD COLUMN IF NOT EXISTS tipo_folha VARCHAR(20) DEFAULT 'normal'`;
+  await db`ALTER TABLE funcionarios ADD COLUMN IF NOT EXISTS carga_horaria_contrato INTEGER DEFAULT 44`;
 
   await db`
     CREATE TABLE IF NOT EXISTS registros_ponto (

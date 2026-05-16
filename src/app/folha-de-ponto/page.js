@@ -18,6 +18,8 @@ export default function FolhaDePontoPage() {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [cargaHoraria, setCargaHoraria] = useState(44);
+  const [cargaHorariaContrato, setCargaHorariaContrato] = useState(44);
+  const [tipoFolha, setTipoFolha] = useState('normal');
   const [jornada, setJornada] = useState({
     seg: { entrada: '09:00', saida_almoco: '12:00', volta_almoco: '13:00', saida: '18:00' },
     ter: { entrada: '09:00', saida_almoco: '12:00', volta_almoco: '13:00', saida: '18:00' },
@@ -56,6 +58,8 @@ export default function FolhaDePontoPage() {
       setEmail(func.email);
       setSenha(''); // Keep blank for editing
       setCargaHoraria(func.carga_horaria_semanal);
+      setCargaHorariaContrato(func.carga_horaria_contrato || func.carga_horaria_semanal);
+      setTipoFolha(func.tipo_folha || 'normal');
       setJornada(typeof func.jornada === 'string' ? JSON.parse(func.jornada) : func.jornada);
     } else {
       setEditingFunc(null);
@@ -65,6 +69,8 @@ export default function FolhaDePontoPage() {
       setEmail('');
       setSenha('');
       setCargaHoraria(44);
+      setCargaHorariaContrato(44);
+      setTipoFolha('normal');
       setJornada({
         seg: { entrada: '09:00', saida_almoco: '12:00', volta_almoco: '13:00', saida: '18:00' },
         ter: { entrada: '09:00', saida_almoco: '12:00', volta_almoco: '13:00', saida: '18:00' },
@@ -84,7 +90,11 @@ export default function FolhaDePontoPage() {
       const payload = {
         action: editingFunc ? 'update' : 'create',
         id: editingFunc?.id,
-        nome, cpf, profissao, email, carga_horaria_semanal: cargaHoraria, jornada
+        nome, cpf, profissao, email,
+        carga_horaria_semanal: tipoFolha === 'atipica' ? parseInt(cargaHorariaContrato) : parseInt(cargaHoraria),
+        carga_horaria_contrato: parseInt(cargaHorariaContrato),
+        tipo_folha: tipoFolha,
+        jornada
       };
       if (senha) payload.senha = senha;
 
@@ -105,14 +115,18 @@ export default function FolhaDePontoPage() {
     }
   };
 
-  const toggleAtivo = async (id) => {
-    if (!confirm('Deseja alterar o status deste funcionário?')) return;
-    await fetch('/api/funcionarios', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'toggle', id })
-    });
-    loadFuncionarios();
+  const handleDelete = async (func) => {
+    if (!confirm(`⚠️ ATENÇÃO: Excluir "${func.nome}" permanentemente?\n\nTodos os registros de ponto deste funcionário serão apagados. Esta ação NÃO pode ser desfeita!`)) return;
+    try {
+      await fetch('/api/funcionarios', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', id: func.id })
+      });
+      loadFuncionarios();
+    } catch (err) {
+      alert('Erro ao excluir funcionário');
+    }
   };
 
   const handleJornadaChange = (dia, field, value) => {
@@ -131,6 +145,25 @@ export default function FolhaDePontoPage() {
     }
     setJornada(newJornada);
   };
+
+  // Calcula as horas de trabalho da jornada definida (para exibir o débito semanal)
+  const calcHorasJornada = () => {
+    let total = 0;
+    Object.values(jornada).forEach(j => {
+      if (j) {
+        const [eh, em] = (j.entrada || '0:0').split(':').map(Number);
+        const [sah, sam] = (j.saida_almoco || '0:0').split(':').map(Number);
+        const [vah, vam] = (j.volta_almoco || '0:0').split(':').map(Number);
+        const [sh, sm] = (j.saida || '0:0').split(':').map(Number);
+        const manha = (sah * 60 + sam) - (eh * 60 + em);
+        const tarde = (sh * 60 + sm) - (vah * 60 + vam);
+        total += (manha + tarde) / 60;
+      }
+    });
+    return Math.round(total * 100) / 100;
+  };
+
+  const debitoSemanal = tipoFolha === 'atipica' ? (44 - parseInt(cargaHorariaContrato || 44)) : 0;
 
   if (userType !== 'admin') return <div className="page-container">Acesso Negado</div>;
 
@@ -167,21 +200,27 @@ export default function FolhaDePontoPage() {
                   <th>CPF</th>
                   <th>E-mail</th>
                   <th>Carga Horária</th>
-                  <th>Status</th>
+                  <th>Tipo Folha</th>
                   <th style={{ textAlign: 'right' }}>Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {funcionarios.map(f => (
-                  <tr key={f.id} style={{ opacity: f.ativo ? 1 : 0.5 }}>
+                  <tr key={f.id}>
                     <td style={{ fontWeight: 500 }}>{f.nome}</td>
                     <td>{f.profissao}</td>
                     <td>{f.cpf}</td>
                     <td>{f.email}</td>
-                    <td>{f.carga_horaria_semanal}h</td>
                     <td>
-                      <span className={`status-badge status-${f.ativo ? 'pago' : 'falta'}`}>
-                        {f.ativo ? 'Ativo' : 'Inativo'}
+                      {f.tipo_folha === 'atipica' ? (
+                        <span>{f.carga_horaria_contrato || f.carga_horaria_semanal}h <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>(de 44h)</span></span>
+                      ) : (
+                        <span>{f.carga_horaria_semanal}h</span>
+                      )}
+                    </td>
+                    <td>
+                      <span className={`status-badge status-${f.tipo_folha === 'atipica' ? 'pendente' : 'pago'}`} style={{ textTransform: 'capitalize' }}>
+                        {f.tipo_folha === 'atipica' ? 'Atípica' : 'Normal'}
                       </span>
                     </td>
                     <td style={{ textAlign: 'right' }}>
@@ -189,7 +228,7 @@ export default function FolhaDePontoPage() {
                         <button className="icon-btn edit" onClick={() => handleOpenModal(f)} title="Editar">
                           <FiEdit2 size={16} />
                         </button>
-                        <button className="icon-btn delete" onClick={() => toggleAtivo(f.id)} title={f.ativo ? 'Desativar' : 'Ativar'}>
+                        <button className="icon-btn delete" onClick={() => handleDelete(f)} title="Excluir Permanentemente">
                           <FiTrash2 size={16} />
                         </button>
                       </div>
@@ -236,10 +275,40 @@ export default function FolhaDePontoPage() {
                   <label className="form-label">Profissão</label>
                   <input type="text" className="form-input" value={profissao} onChange={e => setProfissao(e.target.value)} />
                 </div>
+                
                 <div className="form-group">
-                  <label className="form-label">Carga Horária Semanal (h)</label>
-                  <input type="number" className="form-input" value={cargaHoraria} onChange={e => setCargaHoraria(e.target.value)} required />
+                  <label className="form-label">Tipo de Folha de Ponto</label>
+                  <select className="form-input" value={tipoFolha} onChange={e => setTipoFolha(e.target.value)}>
+                    <option value="normal">Normal (44h semanais)</option>
+                    <option value="atipica">Atípica (menos de 44h semanais)</option>
+                  </select>
                 </div>
+
+                {tipoFolha === 'atipica' ? (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label">Horas Contratadas por Semana</label>
+                      <input type="number" className="form-input" value={cargaHorariaContrato} onChange={e => setCargaHorariaContrato(e.target.value)} required />
+                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                        A referência da CLT é 44h. Se contrato é {cargaHorariaContrato}h, há um débito de {44 - parseInt(cargaHorariaContrato || 44)}h/semana.
+                      </span>
+                    </div>
+                    <div style={{ gridColumn: '1 / -1', padding: '12px 16px', background: 'rgba(140, 105, 172, 0.1)', borderRadius: '8px', border: '1px solid rgba(140, 105, 172, 0.2)' }}>
+                      <strong style={{ color: 'var(--primary-light)', fontSize: '14px' }}>⚠️ Como funciona a Folha Atípica:</strong>
+                      <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '6px', lineHeight: '1.5' }}>
+                        Este funcionário trabalha <strong>{cargaHorariaContrato}h</strong> de um total de <strong>44h</strong> semanais (CLT). 
+                        Sobram <strong>{44 - parseInt(cargaHorariaContrato || 44)}h</strong> de débito por semana.<br/>
+                        Se durante a semana ele trabalhar horas a mais, essas horas primeiro <strong>compensam o débito</strong>. 
+                        Só será contabilizado como <strong>hora extra</strong> o que ultrapassar essas {44 - parseInt(cargaHorariaContrato || 44)}h de compensação.
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="form-group">
+                    <label className="form-label">Carga Horária Semanal (h)</label>
+                    <input type="number" className="form-input" value={cargaHoraria} onChange={e => setCargaHoraria(e.target.value)} required />
+                  </div>
+                )}
                 
                 <div style={{ gridColumn: '1 / -1' }}>
                   <h3 style={{ margin: '16px 0 8px 0', fontSize: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>Jornada de Trabalho Padrão</h3>

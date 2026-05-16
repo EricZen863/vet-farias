@@ -123,11 +123,46 @@ export default function RelatoriosPontoPage() {
 
   const groupedRegistros = registros.reduce((acc, curr) => {
     if (!acc[curr.funcionario_id]) {
-      acc[curr.funcionario_id] = { id: curr.funcionario_id, nome: curr.nome, cpf: curr.cpf, records: [] };
+      acc[curr.funcionario_id] = {
+        id: curr.funcionario_id,
+        nome: curr.nome,
+        cpf: curr.cpf,
+        tipo_folha: curr.tipo_folha || 'normal',
+        carga_horaria_contrato: curr.carga_horaria_contrato || curr.carga_horaria_semanal || 44,
+        records: []
+      };
     }
     acc[curr.funcionario_id].records.push(curr);
     return acc;
   }, {});
+
+  // For atypical employees, calculate real overtime (excess beyond weekly debt)
+  const calcExtrasReais = (emp) => {
+    if (emp.tipo_folha !== 'atipica') {
+      return emp.records.reduce((sum, r) => sum + (parseFloat(r.horas_extras) || 0), 0);
+    }
+    // Atipica: weekly debt = 44 - carga_horaria_contrato
+    const debitoSemanal = 44 - (parseInt(emp.carga_horaria_contrato) || 44);
+    // Group records by ISO week
+    const weeks = {};
+    emp.records.forEach(r => {
+      const d = new Date(r.data);
+      // Get ISO week number
+      const oneJan = new Date(d.getFullYear(), 0, 1);
+      const weekNum = Math.ceil(((d - oneJan) / 86400000 + oneJan.getDay() + 1) / 7);
+      const weekKey = `${d.getFullYear()}-W${weekNum}`;
+      if (!weeks[weekKey]) weeks[weekKey] = [];
+      weeks[weekKey].push(r);
+    });
+    let totalExtrasReais = 0;
+    Object.values(weeks).forEach(weekRecords => {
+      const weekExtrasRaw = weekRecords.reduce((sum, r) => sum + (parseFloat(r.horas_extras) || 0), 0);
+      // Only count as real overtime what exceeds the weekly debt
+      const reais = Math.max(0, weekExtrasRaw - debitoSemanal);
+      totalExtrasReais += reais;
+    });
+    return Math.round(totalExtrasReais * 100) / 100;
+  };
 
   const employeeList = Object.values(groupedRegistros).sort((a, b) => a.nome.localeCompare(b.nome));
 
@@ -168,14 +203,25 @@ export default function RelatoriosPontoPage() {
           <div className="no-data" style={{ gridColumn: '1 / -1' }}>Nenhum registro encontrado para este mês.</div>
         ) : (
           employeeList.map(emp => {
-            const totalExtras = emp.records.reduce((sum, r) => sum + (parseFloat(r.horas_extras) || 0), 0);
+            const totalExtras = calcExtrasReais(emp);
+            const totalExtrasRaw = emp.records.reduce((sum, r) => sum + (parseFloat(r.horas_extras) || 0), 0);
             return (
               <div key={emp.id} className="card" style={{ cursor: 'pointer', position: 'relative' }} onClick={() => setSelectedEmployee(emp)}>
-                <h3 style={{ fontSize: '18px', color: 'var(--text)', marginBottom: '8px' }}>{emp.nome}</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <h3 style={{ fontSize: '18px', color: 'var(--text)', margin: 0 }}>{emp.nome}</h3>
+                  {emp.tipo_folha === 'atipica' && (
+                    <span className="status-badge status-pendente" style={{ fontSize: '10px', padding: '2px 8px' }}>Atípica</span>
+                  )}
+                </div>
                 <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>CPF: {emp.cpf}</p>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px' }}>
                   <span>Registros: <strong>{emp.records.length}</strong></span>
-                  <span style={{ color: totalExtras > 0 ? 'var(--primary-light)' : 'inherit' }}>Extras: <strong>{totalExtras}h</strong></span>
+                  <span style={{ color: totalExtras > 0 ? 'var(--primary-light)' : 'inherit' }}>
+                    Extras: <strong>{totalExtras}h</strong>
+                    {emp.tipo_folha === 'atipica' && totalExtrasRaw !== totalExtras && (
+                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginLeft: '4px' }}>(bruto: {totalExtrasRaw}h)</span>
+                    )}
+                  </span>
                 </div>
               </div>
             );

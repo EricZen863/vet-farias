@@ -29,7 +29,7 @@ export async function GET(request) {
   if (relatorioMes) {
     // Return all records for all users in a specific month
     const rows = await sql`
-      SELECT rp.*, f.nome, f.cpf, f.profissao 
+      SELECT rp.*, f.nome, f.cpf, f.profissao, f.tipo_folha, f.carga_horaria_contrato, f.carga_horaria_semanal 
       FROM registros_ponto rp
       JOIN funcionarios f ON rp.funcionario_id = f.id
       WHERE TO_CHAR(rp.data, 'YYYY-MM') = ${relatorioMes}
@@ -76,22 +76,22 @@ export async function POST(request) {
       await sql`UPDATE registros_ponto SET volta_almoco = ${valor} WHERE funcionario_id = ${funcionarioId} AND TO_CHAR(data, 'YYYY-MM-DD') = ${data}`;
     } else if (campo === 'saida') {
       // Calculate horas extras
-      const funcRows = await sql`SELECT jornada FROM funcionarios WHERE id = ${funcionarioId}`;
+      const funcRows = await sql`SELECT jornada, tipo_folha, carga_horaria_contrato, carga_horaria_semanal FROM funcionarios WHERE id = ${funcionarioId}`;
       const registro = await sql`SELECT * FROM registros_ponto WHERE funcionario_id = ${funcionarioId} AND TO_CHAR(data, 'YYYY-MM-DD') = ${data}`;
       let horasExtras = 0;
 
       if (funcRows.length > 0 && registro.length > 0) {
-        const jornada = typeof funcRows[0].jornada === 'string' ? JSON.parse(funcRows[0].jornada) : funcRows[0].jornada;
+        const func = funcRows[0];
+        const jornada = typeof func.jornada === 'string' ? JSON.parse(func.jornada) : func.jornada;
         const reg = registro[0];
         const diasSemana = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
-        // Parse date considering timezone issues. Let's just create a Date object correctly
         const [year, month, day] = data.split('-');
         const dayIndex = new Date(year, month - 1, day).getDay();
         const diaKey = diasSemana[dayIndex];
         const jornadaDia = jornada[diaKey];
 
         if (reg.tipo_dia === 'feriado' || reg.tipo_dia === 'folga') {
-          // All hours worked count as extra
+          // All hours worked count as extra (raw — for atipica, the report will apply the weekly debt logic)
           if (reg.entrada && valor) {
             const entradaMin = timeToMinutes(reg.entrada);
             const saidaMin = timeToMinutes(valor);

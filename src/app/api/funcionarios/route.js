@@ -7,7 +7,7 @@ export async function GET() {
   await initFolhaDePonto();
   const sql = getSQL();
 
-  const rows = await sql`SELECT id, nome, cpf, profissao, email, carga_horaria_semanal, jornada, ativo, created_at FROM funcionarios ORDER BY nome`;
+  const rows = await sql`SELECT id, nome, cpf, profissao, email, carga_horaria_semanal, carga_horaria_contrato, tipo_folha, jornada, ativo, created_at FROM funcionarios ORDER BY nome`;
   return NextResponse.json(rows);
 }
 
@@ -20,15 +20,15 @@ export async function POST(request) {
   const { action } = body;
 
   if (action === 'create') {
-    const { nome, cpf, profissao, email, senha, carga_horaria_semanal, jornada } = body;
+    const { nome, cpf, profissao, email, senha, carga_horaria_semanal, carga_horaria_contrato, tipo_folha, jornada } = body;
     if (!nome || !cpf || !email || !senha) {
       return NextResponse.json({ error: 'Campos obrigatórios: nome, cpf, email, senha' }, { status: 400 });
     }
     try {
       const rows = await sql`
-        INSERT INTO funcionarios (nome, cpf, profissao, email, senha, carga_horaria_semanal, jornada)
-        VALUES (${nome}, ${cpf}, ${profissao || ''}, ${email}, ${senha}, ${carga_horaria_semanal || 44}, ${JSON.stringify(jornada || {})})
-        RETURNING id, nome, cpf, profissao, email, carga_horaria_semanal, jornada, ativo
+        INSERT INTO funcionarios (nome, cpf, profissao, email, senha, carga_horaria_semanal, carga_horaria_contrato, tipo_folha, jornada)
+        VALUES (${nome}, ${cpf}, ${profissao || ''}, ${email}, ${senha}, ${carga_horaria_semanal || 44}, ${carga_horaria_contrato || carga_horaria_semanal || 44}, ${tipo_folha || 'normal'}, ${JSON.stringify(jornada || {})})
+        RETURNING id, nome, cpf, profissao, email, carga_horaria_semanal, carga_horaria_contrato, tipo_folha, jornada, ativo
       `;
       return NextResponse.json(rows[0]);
     } catch (err) {
@@ -40,25 +40,22 @@ export async function POST(request) {
   }
 
   if (action === 'update') {
-    const { id, nome, cpf, profissao, email, senha, carga_horaria_semanal, jornada } = body;
+    const { id, nome, cpf, profissao, email, senha, carga_horaria_semanal, carga_horaria_contrato, tipo_folha, jornada } = body;
     if (senha) {
       await sql`
         UPDATE funcionarios SET nome=${nome}, cpf=${cpf}, profissao=${profissao || ''}, email=${email}, senha=${senha},
-        carga_horaria_semanal=${carga_horaria_semanal || 44}, jornada=${JSON.stringify(jornada || {})}
+        carga_horaria_semanal=${carga_horaria_semanal || 44}, carga_horaria_contrato=${carga_horaria_contrato || carga_horaria_semanal || 44},
+        tipo_folha=${tipo_folha || 'normal'}, jornada=${JSON.stringify(jornada || {})}
         WHERE id=${id}
       `;
     } else {
       await sql`
         UPDATE funcionarios SET nome=${nome}, cpf=${cpf}, profissao=${profissao || ''}, email=${email},
-        carga_horaria_semanal=${carga_horaria_semanal || 44}, jornada=${JSON.stringify(jornada || {})}
+        carga_horaria_semanal=${carga_horaria_semanal || 44}, carga_horaria_contrato=${carga_horaria_contrato || carga_horaria_semanal || 44},
+        tipo_folha=${tipo_folha || 'normal'}, jornada=${JSON.stringify(jornada || {})}
         WHERE id=${id}
       `;
     }
-    return NextResponse.json({ success: true });
-  }
-
-  if (action === 'toggle') {
-    await sql`UPDATE funcionarios SET ativo = NOT ativo WHERE id = ${body.id}`;
     return NextResponse.json({ success: true });
   }
 

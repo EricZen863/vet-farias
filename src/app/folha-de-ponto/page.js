@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiFileText, FiPrinter } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiFileText, FiPrinter, FiZap } from 'react-icons/fi';
 import { useAuth } from '../../components/AuthProvider';
 import Link from 'next/link';
 
@@ -20,6 +20,7 @@ export default function FolhaDePontoPage() {
   const [cargaHoraria, setCargaHoraria] = useState(44);
   const [cargaHorariaContrato, setCargaHorariaContrato] = useState(44);
   const [tipoFolha, setTipoFolha] = useState('normal');
+  const [funcFake, setFuncFake] = useState(false);
   const [jornada, setJornada] = useState({
     seg: { entrada: '09:00', saida_almoco: '12:00', volta_almoco: '13:00', saida: '18:00' },
     ter: { entrada: '09:00', saida_almoco: '12:00', volta_almoco: '13:00', saida: '18:00' },
@@ -70,6 +71,7 @@ export default function FolhaDePontoPage() {
       setSenha('');
       setCargaHoraria(44);
       setCargaHorariaContrato(44);
+      setFuncFake(false);
       setTipoFolha('normal');
       setJornada({
         seg: { entrada: '09:00', saida_almoco: '12:00', volta_almoco: '13:00', saida: '18:00' },
@@ -108,6 +110,17 @@ export default function FolhaDePontoPage() {
         alert(data.error);
         return;
       }
+
+      // If fake employee, generate 3 weeks of test data
+      if (funcFake && !editingFunc && data.id) {
+        await fetch('/api/funcionarios', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'generate_fake_data', funcionarioId: data.id })
+        });
+        alert(`✅ Funcionário fake criado com sucesso!\n\n3 semanas de registros de ponto foram simulados.\nVá em Relatórios para conferir os dados.`);
+      }
+
       setShowModal(false);
       loadFuncionarios();
     } catch (err) {
@@ -275,7 +288,23 @@ export default function FolhaDePontoPage() {
                   <label className="form-label">Profissão</label>
                   <input type="text" className="form-input" value={profissao} onChange={e => setProfissao(e.target.value)} />
                 </div>
-                
+
+                {!editingFunc && (
+                  <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '12px', gridColumn: '1 / -1' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', padding: '12px 16px', borderRadius: '8px', border: funcFake ? '1px solid var(--primary)' : '1px solid var(--border)', background: funcFake ? 'rgba(140, 105, 172, 0.15)' : 'transparent', transition: 'all 0.2s', width: '100%' }}>
+                      <input type="checkbox" checked={funcFake} onChange={e => setFuncFake(e.target.checked)} style={{ width: '18px', height: '18px', accentColor: 'var(--primary)' }} />
+                      <FiZap size={18} style={{ color: funcFake ? 'var(--primary-light)' : 'var(--text-secondary)' }} />
+                      <div>
+                        <span style={{ fontWeight: 600, color: funcFake ? 'var(--primary-light)' : 'var(--text)', fontSize: '14px' }}>Funcionário Fake (Teste)</span>
+                        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
+                          Gera automaticamente 3 semanas de registros de ponto simulados para testar relatórios.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                )}
+
+
                 <div className="form-group">
                   <label className="form-label">Tipo de Folha de Ponto</label>
                   <select className="form-input" value={tipoFolha} onChange={e => setTipoFolha(e.target.value)}>

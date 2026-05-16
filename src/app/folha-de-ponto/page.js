@@ -118,7 +118,7 @@ export default function FolhaDePontoPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'generate_fake_data', funcionarioId: data.id })
         });
-        alert(`✅ Funcionário fake criado com sucesso!\n\n3 semanas de registros de ponto foram simulados.\nVá em Relatórios para conferir os dados.`);
+        alert(`✅ Funcionário fake criado com sucesso!\n\nRegistros de ponto do mês anterior foram simulados.\nVá em Relatórios para conferir os dados.`);
       }
 
       setShowModal(false);

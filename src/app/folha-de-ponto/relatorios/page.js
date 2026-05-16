@@ -67,6 +67,9 @@ export default function RelatoriosPontoPage() {
       ? registrosDoFunc.filter(r => r.horas_extras > 0 || r.tipo_dia === 'feriado' || r.tipo_dia === 'folga' || r.tipo_dia === 'falta') 
       : registrosDoFunc;
 
+    // Detect month from records
+    const recMonth = registrosDoFunc.length > 0 ? registrosDoFunc[0].data.substring(0, 7) : mesAtual;
+
     const empInfoHTML = buildEmpInfoHTML(emp);
     const isAtipica = emp.tipo_folha === 'atipica';
     const extraColHeader = isAtipica ? '<th>H. Excedentes</th><th>Classificação</th>' : '<th>H. Extras</th>';
@@ -75,7 +78,7 @@ export default function RelatoriosPontoPage() {
     const html = `
       <html>
         <head>
-          <title>Relatório de Ponto - ${emp.nome}</title>
+          <title>Relatório de Ponto - ${emp.nome} - ${recMonth}</title>
           <style>
             body { font-family: sans-serif; padding: 20px; color: #333; }
             h1 { font-size: 20px; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
@@ -88,7 +91,7 @@ export default function RelatoriosPontoPage() {
           </style>
         </head>
         <body>
-          <h1>Relatório de Ponto - ${emp.nome} - ${mesAtual}</h1>
+          <h1>Relatório de Ponto - ${emp.nome} - ${recMonth}</h1>
           ${empInfoHTML}
           <p><strong>Tipo de Relatório:</strong> ${tipo === 'todos' ? 'Todos os dias registrados no mês' : 'Apenas Horas Extras, Feriados e Folgas Trabalhadas'}</p>
           <table>
@@ -277,64 +280,100 @@ export default function RelatoriosPontoPage() {
         )}
       </div>
 
-      {selectedEmployee && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '900px', width: '95%' }}>
-            <div className="modal-header">
-              <h2>Relatório Mensal - {selectedEmployee.nome}</h2>
-              <button className="close-btn" onClick={() => setSelectedEmployee(null)}>&times;</button>
-            </div>
-            
-            <div className="modal-body">
-              <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
-                <button className="btn-primary" onClick={() => handlePrintPDF(selectedEmployee, 'todos')} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <FiDownload /> Imprimir Todos os Dias
-                </button>
-                <button className="btn-secondary" onClick={() => handlePrintPDF(selectedEmployee, 'extras')} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <FiDownload /> Imprimir Apenas Extras/Feriados
-                </button>
-              </div>
+      {selectedEmployee && (() => {
+        // Group records by month (YYYY-MM)
+        const monthGroups = {};
+        selectedEmployee.records.sort((a, b) => new Date(a.data) - new Date(b.data)).forEach(r => {
+          const monthKey = r.data.substring(0, 7);
+          if (!monthGroups[monthKey]) monthGroups[monthKey] = [];
+          monthGroups[monthKey].push(r);
+        });
+        const months = Object.keys(monthGroups).sort().reverse();
+        const monthNames = { '01':'Janeiro','02':'Fevereiro','03':'Março','04':'Abril','05':'Maio','06':'Junho','07':'Julho','08':'Agosto','09':'Setembro','10':'Outubro','11':'Novembro','12':'Dezembro' };
+        const formatMonth = (ym) => { const [y, m] = ym.split('-'); return `${monthNames[m] || m}/${y}`; };
 
-              <div className="table-responsive">
-                <table className="table" style={{ width: '100%', fontSize: '13px' }}>
-                  <thead>
-                    <tr>
-                      <th>Data</th>
-                      <th>Tipo</th>
-                      <th>Entrada</th>
-                      <th>Saída Alm.</th>
-                      <th>Volta Alm.</th>
-                      <th>Saída</th>
-                      <th>H. Extras</th>
-                      <th>Obs</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedEmployee.records.sort((a, b) => new Date(a.data) - new Date(b.data)).map(r => (
-                      <tr key={r.id}>
-                        <td>{new Date(r.data).toLocaleDateString('pt-BR')}</td>
-                        <td style={{ textTransform: 'capitalize' }}>{r.tipo_dia || 'Normal'}</td>
-                        <td>{r.entrada ? r.entrada.substring(0,5) : '-'}</td>
-                        <td>{r.saida_almoco ? r.saida_almoco.substring(0,5) : '-'}</td>
-                        <td>{r.volta_almoco ? r.volta_almoco.substring(0,5) : '-'}</td>
-                        <td>{r.saida ? r.saida.substring(0,5) : '-'}</td>
-                        <td><strong style={{ color: r.horas_extras > 0 ? 'var(--primary)' : 'inherit' }}>{r.horas_extras}h</strong></td>
-                        <td style={{ maxWidth: '100px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={r.observacao}>{r.observacao}</td>
-                        <td>
-                          <button className="icon-btn edit" onClick={(e) => { e.stopPropagation(); handleOpenEdit(r); }} title="Editar">
-                            <FiEdit2 size={14} />
+        return (
+          <div className="modal-overlay">
+            <div className="modal-content" style={{ maxWidth: '950px', width: '95%', maxHeight: '90vh', overflowY: 'auto' }}>
+              <div className="modal-header">
+                <h2>Relatórios - {selectedEmployee.nome}</h2>
+                <button className="close-btn" onClick={() => setSelectedEmployee(null)}>&times;</button>
+              </div>
+              <div className="modal-body">
+                {/* Employee info summary */}
+                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '20px', fontSize: '13px', padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
+                  <div><strong>CPF:</strong> {selectedEmployee.cpf}</div>
+                  <div><strong>Profissão:</strong> {selectedEmployee.profissao || '-'}</div>
+                  <div><strong>Tipo:</strong> {selectedEmployee.tipo_folha === 'atipica' ? 'Atípica' : 'Normal'}</div>
+                  <div><strong>Carga:</strong> {selectedEmployee.carga_horaria_contrato}h/sem</div>
+                </div>
+
+                {/* Month cards */}
+                {months.map(ym => {
+                  const recs = monthGroups[ym];
+                  const monthEmp = { ...selectedEmployee, records: recs };
+                  const summary = calcWeeklySummary(monthEmp);
+                  return (
+                    <div key={ym} className="card" style={{ marginBottom: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                        <h3 style={{ margin: 0, fontSize: '16px' }}>📅 {formatMonth(ym)}</h3>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          <button className="btn-primary" onClick={() => handlePrintPDF({ ...selectedEmployee, records: recs }, 'todos')} style={{ fontSize: '12px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <FiDownload size={12} /> Imprimir Tudo
                           </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          <button className="btn-secondary" onClick={() => handlePrintPDF({ ...selectedEmployee, records: recs }, 'extras')} style={{ fontSize: '12px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <FiDownload size={12} /> Só Extras
+                          </button>
+                        </div>
+                      </div>
+                      {/* Summary row */}
+                      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '12px', marginBottom: '12px', padding: '8px', background: 'var(--bg)', borderRadius: '6px' }}>
+                        <span>Registros: <strong>{recs.length}</strong></span>
+                        <span>Excedentes (bruto): <strong>{summary.totalExtrasBruto}h</strong></span>
+                        {selectedEmployee.tipo_folha === 'atipica' && (
+                          <span style={{ color: '#1565c0' }}>Compensação: <strong>{summary.totalCompensacao}h</strong></span>
+                        )}
+                        <span style={{ color: summary.totalExtrasReais > 0 ? '#d32f2f' : 'inherit' }}>
+                          HE Reais: <strong>{summary.totalExtrasReais}h</strong>
+                        </span>
+                      </div>
+                      {/* Records table */}
+                      <div className="table-responsive">
+                        <table className="table" style={{ width: '100%', fontSize: '12px' }}>
+                          <thead>
+                            <tr>
+                              <th>Data</th><th>Tipo</th><th>Entrada</th><th>S.Alm</th><th>V.Alm</th><th>Saída</th><th>H.Exc</th><th>Obs</th><th></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {recs.map(r => (
+                              <tr key={r.id}>
+                                <td>{new Date(r.data).toLocaleDateString('pt-BR')}</td>
+                                <td style={{ textTransform: 'capitalize' }}>{r.tipo_dia || 'Normal'}</td>
+                                <td>{r.entrada ? r.entrada.substring(0,5) : '-'}</td>
+                                <td>{r.saida_almoco ? r.saida_almoco.substring(0,5) : '-'}</td>
+                                <td>{r.volta_almoco ? r.volta_almoco.substring(0,5) : '-'}</td>
+                                <td>{r.saida ? r.saida.substring(0,5) : '-'}</td>
+                                <td><strong style={{ color: r.horas_extras > 0 ? 'var(--primary)' : 'inherit' }}>{r.horas_extras}h</strong></td>
+                                <td style={{ maxWidth: '80px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={r.observacao}>{r.observacao}</td>
+                                <td>
+                                  <button className="icon-btn edit" onClick={(e) => { e.stopPropagation(); handleOpenEdit(r); }} title="Editar">
+                                    <FiEdit2 size={14} />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {editingRecord && (
         <div className="modal-overlay">

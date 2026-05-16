@@ -81,33 +81,29 @@ export async function POST(request) {
     // Helper to map JS day (0=Sun) to jornada key
     const dayKeys = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
     
-    // Generate dates for last 3 weeks (21 days back from today)
+    // Generate dates for the LAST FULL MONTH (1st to last day)
     const today = new Date();
+    const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const lastDayOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0).getDate();
     const records = [];
     
-    for (let i = 21; i >= 1; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
+    for (let day = 1; day <= lastDayOfLastMonth; day++) {
+      const d = new Date(lastMonth.getFullYear(), lastMonth.getMonth(), day);
       const dateStr = d.toISOString().split('T')[0];
-      const dayOfWeek = d.getDay(); // 0=Sun, 6=Sat
+      const dayOfWeek = d.getDay();
       const dayKey = dayKeys[dayOfWeek];
       const jornadaDia = jornadaObj[dayKey];
       
-      // Skip days marked as folga in the jornada
       if (jornadaDia === null || jornadaDia === undefined) continue;
       
-      // Determine tipo_dia
       let tipoDia = 'normal';
-      if (dayOfWeek === 0) tipoDia = 'feriado'; // Sunday = treated as holiday
-      if (dayOfWeek === 6) tipoDia = 'normal'; // Saturday = normal work
+      if (dayOfWeek === 0) tipoDia = 'feriado';
       
-      // Base schedule from jornada
       const entrada = jornadaDia.entrada || '09:00';
       const saidaAlmoco = jornadaDia.saida_almoco || '12:00';
       const voltaAlmoco = jornadaDia.volta_almoco || '13:00';
       let saida = jornadaDia.saida || '18:00';
       
-      // Calculate base hours
       const [eh, em] = entrada.split(':').map(Number);
       const [sah, sam] = saidaAlmoco.split(':').map(Number);
       const [vah, vam] = voltaAlmoco.split(':').map(Number);
@@ -115,34 +111,44 @@ export async function POST(request) {
       const baseMinutes = ((sah * 60 + sam) - (eh * 60 + em)) + ((sh * 60 + sm) - (vah * 60 + vam));
       const baseHours = baseMinutes / 60;
       
-      // Add realistic variation for overtime simulation
-      // For atipica: need some weeks with extras below deficit, some above
+      // Week number within the month (0-based): 0,1,2,3
+      const weekNum = Math.floor((day - 1) / 7);
+      const dayInWeek = (day - 1) % 7;
       let extraMinutes = 0;
-      const weekNum = Math.floor((21 - i) / 7); // 0, 1, 2
-      const dayInWeek = (21 - i) % 7;
       
       if (tipoFolha === 'atipica') {
-        // Week 0: small extras (total ~2h), below deficit of 4h => NO real overtime
-        // Week 1: medium extras (total ~5h), above deficit of 4h => 1h real overtime
-        // Week 2: large extras (total ~7h), above deficit => 3h real overtime
-        if (weekNum === 0 && dayInWeek % 3 === 0) {
-          extraMinutes = 40; // +40min on some days
-        } else if (weekNum === 1 && dayInWeek % 2 === 0) {
-          extraMinutes = 60; // +1h on alternating days
+        // Alternating pattern:
+        // Week 0 (1st): Only compensation — total extras ~3h (below 4h debt)
+        // Week 1 (2nd): Exceeds debt — total extras ~6h (2h real overtime)
+        // Week 2 (3rd): Only compensation — total extras ~2.5h (below 4h debt)
+        // Week 3 (4th): Exceeds debt — total extras ~7h (3h real overtime)
+        if (weekNum === 0) {
+          if (dayInWeek === 1 || dayInWeek === 3) extraMinutes = 45;
+          if (dayInWeek === 4) extraMinutes = 30;
+        } else if (weekNum === 1) {
+          if (dayInWeek === 0 || dayInWeek === 2 || dayInWeek === 4) extraMinutes = 60;
+          if (dayInWeek === 1) extraMinutes = 90;
+          if (dayInWeek === 3) extraMinutes = 30;
         } else if (weekNum === 2) {
-          extraMinutes = dayInWeek <= 3 ? 90 : 30; // +1.5h first days, +30min rest
+          if (dayInWeek === 2) extraMinutes = 50;
+          if (dayInWeek === 4) extraMinutes = 40;
+          if (dayInWeek === 0) extraMinutes = 30;
+        } else if (weekNum >= 3) {
+          if (dayInWeek === 0 || dayInWeek === 1) extraMinutes = 90;
+          if (dayInWeek === 2 || dayInWeek === 3) extraMinutes = 60;
+          if (dayInWeek === 4) extraMinutes = 40;
         }
       } else {
-        // Normal: random small overtime on some days
-        if (dayInWeek === 1 || dayInWeek === 3) {
-          extraMinutes = [30, 45, 60, 90][weekNum % 4]; // some variation
-        }
-        if (dayInWeek === 4 && weekNum === 2) {
-          extraMinutes = 120; // 2h extra one day
-        }
+        // Normal: varied overtime
+        if (weekNum === 0 && (dayInWeek === 1 || dayInWeek === 3)) extraMinutes = 30;
+        if (weekNum === 1 && (dayInWeek === 0 || dayInWeek === 2)) extraMinutes = 60;
+        if (weekNum === 1 && dayInWeek === 4) extraMinutes = 45;
+        if (weekNum === 2 && dayInWeek === 1) extraMinutes = 90;
+        if (weekNum === 2 && dayInWeek === 3) extraMinutes = 30;
+        if (weekNum >= 3 && (dayInWeek === 0 || dayInWeek === 2)) extraMinutes = 60;
+        if (weekNum >= 3 && dayInWeek === 4) extraMinutes = 120;
       }
       
-      // Apply extra minutes to saida time
       if (extraMinutes > 0) {
         const totalSaidaMin = sh * 60 + sm + extraMinutes;
         const newHour = Math.floor(totalSaidaMin / 60);
@@ -150,7 +156,6 @@ export async function POST(request) {
         saida = `${String(newHour).padStart(2, '0')}:${String(newMin).padStart(2, '0')}`;
       }
       
-      // Calculate total hours and overtime
       const [fsh, fsm] = saida.split(':').map(Number);
       const totalMinutes = ((sah * 60 + sam) - (eh * 60 + em)) + ((fsh * 60 + fsm) - (vah * 60 + vam));
       const totalHours = totalMinutes / 60;

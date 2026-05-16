@@ -61,13 +61,11 @@ export default function Sidebar() {
               </Link>
             );
           })}
-        </nav>
-        <div className="sidebar-footer">
-          <button className="logout-btn" onClick={logout}>
-            <FiLogOut size={18} />
+          <button className="nav-item logout-nav-btn" onClick={logout} style={{ marginTop: '12px', border: 'none', background: 'transparent', cursor: 'pointer', width: '100%', textAlign: 'left' }}>
+            <FiLogOut size={20} />
             <span>Sair</span>
           </button>
-        </div>
+        </nav>
       </aside>
       {mobileOpen && <div className="sidebar-overlay" onClick={() => setMobileOpen(false)} />}
     </>

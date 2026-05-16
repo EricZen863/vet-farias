@@ -61,56 +61,67 @@ export default function RelatoriosPontoPage() {
     }
   };
 
-  const handlePrintPDF = (funcName, registrosDoFunc, tipo) => {
+  const handlePrintPDF = (emp, tipo) => {
+    const registrosDoFunc = emp.records;
     const recordsToPrint = tipo === 'extras' 
       ? registrosDoFunc.filter(r => r.horas_extras > 0 || r.tipo_dia === 'feriado' || r.tipo_dia === 'folga' || r.tipo_dia === 'falta') 
       : registrosDoFunc;
+
+    const empInfoHTML = buildEmpInfoHTML(emp);
+    const isAtipica = emp.tipo_folha === 'atipica';
+    const extraColHeader = isAtipica ? '<th>H. Excedentes</th><th>Classificação</th>' : '<th>H. Extras</th>';
 
     const printWindow = window.open('', '_blank');
     const html = `
       <html>
         <head>
-          <title>Relatório de Ponto - ${funcName}</title>
+          <title>Relatório de Ponto - ${emp.nome}</title>
           <style>
             body { font-family: sans-serif; padding: 20px; color: #333; }
             h1 { font-size: 20px; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+            th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
             th { background-color: #f5f5f5; }
             .extra { color: #d32f2f; font-weight: bold; }
+            .compensacao { color: #1565c0; font-weight: bold; }
+            details { font-size: 11px; }
           </style>
         </head>
         <body>
-          <h1>Relatório de Ponto - ${funcName} - ${mesAtual}</h1>
+          <h1>Relatório de Ponto - ${emp.nome} - ${mesAtual}</h1>
+          ${empInfoHTML}
           <p><strong>Tipo de Relatório:</strong> ${tipo === 'todos' ? 'Todos os dias registrados no mês' : 'Apenas Horas Extras, Feriados e Folgas Trabalhadas'}</p>
           <table>
             <thead>
               <tr>
-                <th>Data</th>
-                <th>Tipo</th>
-                <th>Entrada</th>
-                <th>Saída Almoço</th>
-                <th>Volta Almoço</th>
-                <th>Saída</th>
-                <th>H. Extras</th>
-                <th>Observação</th>
+                <th>Data</th><th>Tipo</th><th>Entrada</th><th>Saída Almoço</th><th>Volta Almoço</th><th>Saída</th>${extraColHeader}<th>Observação</th>
               </tr>
             </thead>
             <tbody>
-              ${recordsToPrint.length > 0 ? recordsToPrint.map(r => `
-                <tr>
+              ${recordsToPrint.length > 0 ? recordsToPrint.map(r => {
+                const he = parseFloat(r.horas_extras) || 0;
+                let extraCells = '';
+                if (isAtipica) {
+                  const classif = he > 0 ? 'Compensa débito*' : '-';
+                  const cls = he > 0 ? 'compensacao' : '';
+                  extraCells = `<td class="${cls}">${he}h</td><td style="font-size:11px;">${classif}</td>`;
+                } else {
+                  extraCells = `<td class="${he > 0 ? 'extra' : ''}">${he}h</td>`;
+                }
+                return `<tr>
                   <td>${new Date(r.data).toLocaleDateString('pt-BR')}</td>
-                  <td style="text-transform: capitalize;">${r.tipo_dia || 'Normal'}</td>
+                  <td style="text-transform:capitalize;">${r.tipo_dia || 'Normal'}</td>
                   <td>${r.entrada ? r.entrada.substring(0,5) : '-'}</td>
                   <td>${r.saida_almoco ? r.saida_almoco.substring(0,5) : '-'}</td>
                   <td>${r.volta_almoco ? r.volta_almoco.substring(0,5) : '-'}</td>
                   <td>${r.saida ? r.saida.substring(0,5) : '-'}</td>
-                  <td class="${r.horas_extras > 0 ? 'extra' : ''}">${r.horas_extras}h</td>
+                  ${extraCells}
                   <td>${r.observacao || ''}</td>
-                </tr>
-              `).join('') : '<tr><td colspan="8" style="text-align: center;">Nenhum registro encontrado para este filtro.</td></tr>'}
+                </tr>`;
+              }).join('') : '<tr><td colspan="9" style="text-align:center;">Nenhum registro encontrado.</td></tr>'}
             </tbody>
           </table>
+          ${isAtipica ? '<p style="font-size:11px;color:#666;margin-top:10px;">* As horas excedentes primeiro compensam o débito semanal. Somente o excedente além do débito é contabilizado como Hora Extra Real (ver resumo acima).</p>' : ''}
           <script>
             window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }
           </script>
@@ -127,8 +138,11 @@ export default function RelatoriosPontoPage() {
         id: curr.funcionario_id,
         nome: curr.nome,
         cpf: curr.cpf,
+        profissao: curr.profissao || '',
         tipo_folha: curr.tipo_folha || 'normal',
         carga_horaria_contrato: curr.carga_horaria_contrato || curr.carga_horaria_semanal || 44,
+        carga_horaria_semanal: curr.carga_horaria_semanal || 44,
+        func_jornada: curr.func_jornada || {},
         records: []
       };
     }
@@ -137,31 +151,65 @@ export default function RelatoriosPontoPage() {
   }, {});
 
   // For atypical employees, calculate real overtime (excess beyond weekly debt)
-  const calcExtrasReais = (emp) => {
-    if (emp.tipo_folha !== 'atipica') {
-      return emp.records.reduce((sum, r) => sum + (parseFloat(r.horas_extras) || 0), 0);
-    }
-    // Atipica: weekly debt = 44 - carga_horaria_contrato
-    const debitoSemanal = 44 - (parseInt(emp.carga_horaria_contrato) || 44);
-    // Group records by ISO week
+  const calcWeeklySummary = (emp) => {
+    const debitoSemanal = emp.tipo_folha === 'atipica' ? (44 - (parseInt(emp.carga_horaria_contrato) || 44)) : 0;
     const weeks = {};
     emp.records.forEach(r => {
       const d = new Date(r.data);
-      // Get ISO week number
       const oneJan = new Date(d.getFullYear(), 0, 1);
       const weekNum = Math.ceil(((d - oneJan) / 86400000 + oneJan.getDay() + 1) / 7);
       const weekKey = `${d.getFullYear()}-W${weekNum}`;
-      if (!weeks[weekKey]) weeks[weekKey] = [];
-      weeks[weekKey].push(r);
+      if (!weeks[weekKey]) weeks[weekKey] = { extras: 0, records: [] };
+      weeks[weekKey].extras += (parseFloat(r.horas_extras) || 0);
+      weeks[weekKey].records.push(r);
     });
     let totalExtrasReais = 0;
-    Object.values(weeks).forEach(weekRecords => {
-      const weekExtrasRaw = weekRecords.reduce((sum, r) => sum + (parseFloat(r.horas_extras) || 0), 0);
-      // Only count as real overtime what exceeds the weekly debt
-      const reais = Math.max(0, weekExtrasRaw - debitoSemanal);
-      totalExtrasReais += reais;
+    let totalCompensacao = 0;
+    let totalExtrasBruto = 0;
+    Object.values(weeks).forEach(w => {
+      totalExtrasBruto += w.extras;
+      if (emp.tipo_folha === 'atipica') {
+        const comp = Math.min(w.extras, debitoSemanal);
+        totalCompensacao += comp;
+        totalExtrasReais += Math.max(0, w.extras - debitoSemanal);
+      } else {
+        totalExtrasReais += w.extras;
+      }
     });
-    return Math.round(totalExtrasReais * 100) / 100;
+    return { totalExtrasBruto: Math.round(totalExtrasBruto * 100) / 100, totalCompensacao: Math.round(totalCompensacao * 100) / 100, totalExtrasReais: Math.round(totalExtrasReais * 100) / 100, debitoSemanal };
+  };
+
+  const calcExtrasReais = (emp) => calcWeeklySummary(emp).totalExtrasReais;
+
+  // Generate employee info HTML for PDF
+  const buildEmpInfoHTML = (emp) => {
+    const diaLabels = { seg: 'Seg', ter: 'Ter', qua: 'Qua', qui: 'Qui', sex: 'Sex', sab: 'Sáb', dom: 'Dom' };
+    const jornada = typeof emp.func_jornada === 'string' ? JSON.parse(emp.func_jornada) : (emp.func_jornada || {});
+    const summary = calcWeeklySummary(emp);
+    let jornadaRows = '';
+    ['seg','ter','qua','qui','sex','sab','dom'].forEach(dia => {
+      const j = jornada[dia];
+      jornadaRows += j ? `<tr><td>${diaLabels[dia]}</td><td>${j.entrada||'-'}</td><td>${j.saida_almoco||'-'}</td><td>${j.volta_almoco||'-'}</td><td>${j.saida||'-'}</td></tr>` : `<tr><td>${diaLabels[dia]}</td><td colspan="4" style="text-align:center;color:#999;">Folga</td></tr>`;
+    });
+    let resumoHTML = `<p><strong>Total Horas Excedentes (bruto):</strong> ${summary.totalExtrasBruto}h</p>`;
+    if (emp.tipo_folha === 'atipica') {
+      resumoHTML += `<p><strong>Débito Semanal:</strong> ${summary.debitoSemanal}h (44h - ${emp.carga_horaria_contrato}h contrato)</p>`;
+      resumoHTML += `<p><strong>Compensação de Débito:</strong> ${summary.totalCompensacao}h</p>`;
+    }
+    resumoHTML += `<p style="font-size:14px;"><strong>✅ Horas Extras Reais:</strong> <span style="color:#d32f2f;font-size:16px;font-weight:bold;">${summary.totalExtrasReais}h</span></p>`;
+    return `
+      <div style="display:flex;gap:30px;flex-wrap:wrap;margin-bottom:15px;font-size:12px;border:1px solid #ddd;padding:12px;border-radius:6px;background:#fafafa;">
+        <div><strong>Nome:</strong> ${emp.nome}</div>
+        <div><strong>CPF:</strong> ${emp.cpf}</div>
+        <div><strong>Profissão:</strong> ${emp.profissao || '-'}</div>
+        <div><strong>Tipo Folha:</strong> ${emp.tipo_folha === 'atipica' ? 'Atípica' : 'Normal'}</div>
+        <div><strong>Carga Horária:</strong> ${emp.carga_horaria_contrato}h/semana</div>
+      </div>
+      <details open style="margin-bottom:15px;font-size:11px;"><summary style="cursor:pointer;font-weight:bold;font-size:12px;">Jornada de Trabalho Padrão</summary>
+        <table style="width:auto;margin-top:6px;font-size:11px;"><thead><tr><th>Dia</th><th>Entrada</th><th>S. Almoço</th><th>V. Almoço</th><th>Saída</th></tr></thead><tbody>${jornadaRows}</tbody></table>
+      </details>
+      <div style="margin-bottom:15px;padding:10px;border:1px solid #ddd;border-radius:6px;background:#f0f0f0;font-size:12px;">${resumoHTML}</div>
+    `;
   };
 
   const employeeList = Object.values(groupedRegistros).sort((a, b) => a.nome.localeCompare(b.nome));
@@ -239,10 +287,10 @@ export default function RelatoriosPontoPage() {
             
             <div className="modal-body">
               <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
-                <button className="btn-primary" onClick={() => handlePrintPDF(selectedEmployee.nome, selectedEmployee.records, 'todos')} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button className="btn-primary" onClick={() => handlePrintPDF(selectedEmployee, 'todos')} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <FiDownload /> Imprimir Todos os Dias
                 </button>
-                <button className="btn-secondary" onClick={() => handlePrintPDF(selectedEmployee.nome, selectedEmployee.records, 'extras')} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button className="btn-secondary" onClick={() => handlePrintPDF(selectedEmployee, 'extras')} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <FiDownload /> Imprimir Apenas Extras/Feriados
                 </button>
               </div>

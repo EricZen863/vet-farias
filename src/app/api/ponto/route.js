@@ -29,7 +29,7 @@ export async function GET(request) {
   if (relatorioMes) {
     // Return all records for all users in a specific month
     const rows = await sql`
-      SELECT rp.*, f.nome, f.cpf, f.profissao, f.tipo_folha, f.carga_horaria_contrato, f.carga_horaria_semanal 
+      SELECT rp.*, f.nome, f.cpf, f.profissao, f.tipo_folha, f.carga_horaria_contrato, f.carga_horaria_semanal, f.jornada AS func_jornada 
       FROM registros_ponto rp
       JOIN funcionarios f ON rp.funcionario_id = f.id
       WHERE TO_CHAR(rp.data, 'YYYY-MM') = ${relatorioMes}

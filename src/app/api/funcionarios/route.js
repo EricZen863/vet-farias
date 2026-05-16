@@ -83,13 +83,15 @@ export async function POST(request) {
     
     // Generate dates for the LAST FULL MONTH (1st to last day)
     const today = new Date();
-    const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-    const lastDayOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0).getDate();
+    const lastMonthYear = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
+    const lastMonthMonth = today.getMonth() === 0 ? 12 : today.getMonth(); // 1-based month
+    const lastDayOfLastMonth = new Date(lastMonthYear, lastMonthMonth, 0).getDate();
     const records = [];
     
     for (let day = 1; day <= lastDayOfLastMonth; day++) {
-      const d = new Date(lastMonth.getFullYear(), lastMonth.getMonth(), day);
-      const dateStr = d.toISOString().split('T')[0];
+      const d = new Date(lastMonthYear, lastMonthMonth - 1, day);
+      // Format date manually to avoid timezone issues
+      const dateStr = `${lastMonthYear}-${String(lastMonthMonth).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
       const dayOfWeek = d.getDay();
       const dayKey = dayKeys[dayOfWeek];
       const jornadaDia = jornadaObj[dayKey];
@@ -174,6 +176,9 @@ export async function POST(request) {
     }
     
     // Insert all records (skip duplicates)
+    let inserted = 0;
+    let errors = [];
+    console.log(`[FAKE] Generating ${records.length} records for employee ${funcionarioId}, month: ${lastMonthYear}-${String(lastMonthMonth).padStart(2,'0')}`);
     for (const r of records) {
       try {
         await sql`
@@ -181,12 +186,15 @@ export async function POST(request) {
           VALUES (${r.funcionarioId}, ${r.data}, ${r.tipoDia}, ${r.entrada}, ${r.saidaAlmoco}, ${r.voltaAlmoco}, ${r.saida}, ${r.horasExtras})
           ON CONFLICT (funcionario_id, data) DO NOTHING
         `;
+        inserted++;
       } catch (e) {
-        // Skip duplicates silently
+        console.error(`[FAKE] Error inserting ${r.data}:`, e.message);
+        errors.push(`${r.data}: ${e.message}`);
       }
     }
+    console.log(`[FAKE] Done: ${inserted}/${records.length} inserted`);
     
-    return NextResponse.json({ success: true, recordsGenerated: records.length });
+    return NextResponse.json({ success: true, recordsGenerated: records.length, inserted, errors: errors.length > 0 ? errors : undefined });
   }
 
   return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

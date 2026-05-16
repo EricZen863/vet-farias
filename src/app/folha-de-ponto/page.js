@@ -111,14 +111,24 @@ export default function FolhaDePontoPage() {
         return;
       }
 
-      // If fake employee, generate 3 weeks of test data
+      // If fake employee, generate test data for last month
       if (funcFake && !editingFunc && data.id) {
-        await fetch('/api/funcionarios', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'generate_fake_data', funcionarioId: data.id })
-        });
-        alert(`✅ Funcionário fake criado com sucesso!\n\nRegistros de ponto do mês anterior foram simulados.\nVá em Relatórios para conferir os dados.`);
+        try {
+          const fakeRes = await fetch('/api/funcionarios', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'generate_fake_data', funcionarioId: data.id })
+          });
+          const fakeData = await fakeRes.json();
+          if (fakeData.success) {
+            alert(`✅ Funcionário fake criado com sucesso!\n\n${fakeData.inserted || fakeData.recordsGenerated} registros de ponto do mês anterior foram simulados.\nVá em Relatórios para conferir os dados.`);
+          } else {
+            alert(`⚠️ Funcionário criado, mas houve um problema ao gerar os dados fake:\n${JSON.stringify(fakeData)}`);
+          }
+        } catch (fakeErr) {
+          console.error('Fake data error:', fakeErr);
+          alert(`⚠️ Funcionário criado, mas erro ao gerar dados fake:\n${fakeErr.message}`);
+        }
       }
 
       setShowModal(false);

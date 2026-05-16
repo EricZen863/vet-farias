@@ -62,75 +62,68 @@ export default function RelatoriosPontoPage() {
   };
 
   const handlePrintPDF = (emp, tipo) => {
-    const registrosDoFunc = emp.records;
-    const recordsToPrint = tipo === 'extras' 
-      ? registrosDoFunc.filter(r => r.horas_extras > 0 || r.tipo_dia === 'feriado' || r.tipo_dia === 'folga' || r.tipo_dia === 'falta') 
-      : registrosDoFunc;
-
-    // Detect month from records
-    const recMonth = registrosDoFunc.length > 0 ? registrosDoFunc[0].data.substring(0, 7) : mesAtual;
-
+    const monthEmp = { ...emp };
+    const summary = calcWeeklySummary(monthEmp);
+    const recMonth = emp.records.length > 0 ? emp.records[0].data.substring(0, 7) : mesAtual;
     const empInfoHTML = buildEmpInfoHTML(emp);
     const isAtipica = emp.tipo_folha === 'atipica';
-    const extraColHeader = isAtipica ? '<th>H. Excedentes</th><th>Classificação</th>' : '<th>H. Extras</th>';
+
+    // Build weekly tables
+    let weekTablesHTML = '';
+    summary.weeks.forEach(week => {
+      const fmtD = (d) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+      const recs = tipo === 'extras' ? week.records.filter(r => (parseFloat(r.horas_extras) || 0) > 0 || r.tipo_dia === 'feriado' || r.tipo_dia === 'folga' || r.tipo_dia === 'falta') : week.records;
+      if (recs.length === 0) return;
+      const classifCol = isAtipica ? '<th>Classificação</th>' : '';
+      weekTablesHTML += `<h3 style="font-size:13px;margin:18px 0 6px 0;border-bottom:1px solid #eee;padding-bottom:4px;">Semana ${week.weekNum} (${fmtD(week.start)} - ${fmtD(week.end)})</h3>`;
+      weekTablesHTML += `<table><thead><tr><th>Data</th><th>Tipo</th><th>Entrada</th><th>S. Almoço</th><th>V. Almoço</th><th>Saída</th><th>H. Exc</th>${classifCol}<th>Obs</th></tr></thead><tbody>`;
+      recs.forEach(r => {
+        const he = parseFloat(r.horas_extras) || 0;
+        const isReal = r.dayReal > 0;
+        const rowStyle = isReal ? ' style="background:#fff0f0;"' : '';
+        let classifCell = '';
+        if (isAtipica) {
+          if (he === 0) classifCell = '<td style="color:#999;">-</td>';
+          else if (isReal && r.dayComp > 0) classifCell = `<td><span class="extra">HE Real ${r.dayReal}h</span><br><span class="compensacao">Comp ${r.dayComp}h</span></td>`;
+          else if (isReal) classifCell = `<td class="extra">HE Real ${r.dayReal}h</td>`;
+          else classifCell = `<td class="compensacao">Comp ${r.dayComp}h</td>`;
+        }
+        weekTablesHTML += `<tr${rowStyle}><td>${new Date(r.data).toLocaleDateString('pt-BR')}</td><td style="text-transform:capitalize;">${r.tipo_dia || 'Normal'}</td><td>${r.entrada ? r.entrada.substring(0,5) : '-'}</td><td>${r.saida_almoco ? r.saida_almoco.substring(0,5) : '-'}</td><td>${r.volta_almoco ? r.volta_almoco.substring(0,5) : '-'}</td><td>${r.saida ? r.saida.substring(0,5) : '-'}</td><td class="${isReal ? 'extra' : he > 0 ? 'compensacao' : ''}">${he}h</td>${classifCell}<td>${r.observacao || ''}</td></tr>`;
+      });
+      weekTablesHTML += `</tbody></table>`;
+      // Week summary
+      weekTablesHTML += `<div style="display:flex;gap:20px;font-size:11px;padding:6px 8px;background:#f5f5f5;border-radius:4px;margin-top:4px;">`;
+      weekTablesHTML += `<span><strong>Exc:</strong> ${week.totalExtras}h</span>`;
+      if (isAtipica) weekTablesHTML += `<span style="color:#1565c0;"><strong>Comp:</strong> ${week.weekComp}h</span>`;
+      weekTablesHTML += `<span style="color:${week.weekReal > 0 ? '#d32f2f' : '#333'};"><strong>HE Real:</strong> ${week.weekReal}h</span>`;
+      weekTablesHTML += `</div>`;
+    });
+
+    // Monthly total
+    let monthTotalHTML = `<div style="margin-top:16px;padding:10px;border:2px solid #333;border-radius:6px;font-size:13px;">`;
+    monthTotalHTML += `<strong>📊 TOTAL MENSAL:</strong>&nbsp;&nbsp; Excedentes: ${summary.totalExtrasBruto}h`;
+    if (isAtipica) monthTotalHTML += `&nbsp;&nbsp;|&nbsp;&nbsp;<span style="color:#1565c0;">Compensação: ${summary.totalCompensacao}h</span>`;
+    monthTotalHTML += `&nbsp;&nbsp;|&nbsp;&nbsp;<span style="color:#d32f2f;font-weight:bold;">HE Reais: ${summary.totalExtrasReais}h</span></div>`;
 
     const printWindow = window.open('', '_blank');
-    const html = `
-      <html>
-        <head>
-          <title>Relatório de Ponto - ${emp.nome} - ${recMonth}</title>
-          <style>
-            body { font-family: sans-serif; padding: 20px; color: #333; }
-            h1 { font-size: 20px; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-            th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
-            th { background-color: #f5f5f5; }
-            .extra { color: #d32f2f; font-weight: bold; }
-            .compensacao { color: #1565c0; font-weight: bold; }
-            details { font-size: 11px; }
-          </style>
-        </head>
-        <body>
-          <h1>Relatório de Ponto - ${emp.nome} - ${recMonth}</h1>
-          ${empInfoHTML}
-          <p><strong>Tipo de Relatório:</strong> ${tipo === 'todos' ? 'Todos os dias registrados no mês' : 'Apenas Horas Extras, Feriados e Folgas Trabalhadas'}</p>
-          <table>
-            <thead>
-              <tr>
-                <th>Data</th><th>Tipo</th><th>Entrada</th><th>Saída Almoço</th><th>Volta Almoço</th><th>Saída</th>${extraColHeader}<th>Observação</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${recordsToPrint.length > 0 ? recordsToPrint.map(r => {
-                const he = parseFloat(r.horas_extras) || 0;
-                let extraCells = '';
-                if (isAtipica) {
-                  const classif = he > 0 ? 'Compensa débito*' : '-';
-                  const cls = he > 0 ? 'compensacao' : '';
-                  extraCells = `<td class="${cls}">${he}h</td><td style="font-size:11px;">${classif}</td>`;
-                } else {
-                  extraCells = `<td class="${he > 0 ? 'extra' : ''}">${he}h</td>`;
-                }
-                return `<tr>
-                  <td>${new Date(r.data).toLocaleDateString('pt-BR')}</td>
-                  <td style="text-transform:capitalize;">${r.tipo_dia || 'Normal'}</td>
-                  <td>${r.entrada ? r.entrada.substring(0,5) : '-'}</td>
-                  <td>${r.saida_almoco ? r.saida_almoco.substring(0,5) : '-'}</td>
-                  <td>${r.volta_almoco ? r.volta_almoco.substring(0,5) : '-'}</td>
-                  <td>${r.saida ? r.saida.substring(0,5) : '-'}</td>
-                  ${extraCells}
-                  <td>${r.observacao || ''}</td>
-                </tr>`;
-              }).join('') : '<tr><td colspan="9" style="text-align:center;">Nenhum registro encontrado.</td></tr>'}
-            </tbody>
-          </table>
-          ${isAtipica ? '<p style="font-size:11px;color:#666;margin-top:10px;">* As horas excedentes primeiro compensam o débito semanal. Somente o excedente além do débito é contabilizado como Hora Extra Real (ver resumo acima).</p>' : ''}
-          <script>
-            window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }
-          </script>
-        </body>
-      </html>
-    `;
+    const html = `<html><head><title>Relatório - ${emp.nome} - ${recMonth}</title>
+      <style>
+        body { font-family: sans-serif; padding: 20px; color: #333; }
+        h1 { font-size: 20px; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        th, td { border: 1px solid #ddd; padding: 5px 6px; text-align: left; }
+        th { background-color: #f5f5f5; }
+        .extra { color: #d32f2f; font-weight: bold; }
+        .compensacao { color: #1565c0; font-weight: bold; }
+      </style></head><body>
+      <h1>Relatório de Ponto - ${emp.nome} - ${recMonth}</h1>
+      ${empInfoHTML}
+      <p><strong>Tipo:</strong> ${tipo === 'todos' ? 'Todos os dias' : 'Apenas Extras/Feriados/Folgas'}</p>
+      ${weekTablesHTML}
+      ${monthTotalHTML}
+      ${isAtipica ? '<p style="font-size:10px;color:#666;margin-top:12px;">* Horas excedentes compensam o débito semanal primeiro. Somente o excedente além do débito = Hora Extra Real.</p>' : ''}
+      <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }</script>
+    </body></html>`;
     printWindow.document.write(html);
     printWindow.document.close();
   };
@@ -154,32 +147,52 @@ export default function RelatoriosPontoPage() {
   }, {});
 
   // For atypical employees, calculate real overtime (excess beyond weekly debt)
+  // Returns per-week breakdown with per-day classification
   const calcWeeklySummary = (emp) => {
     const debitoSemanal = emp.tipo_folha === 'atipica' ? (44 - (parseInt(emp.carga_horaria_contrato) || 44)) : 0;
-    const weeks = {};
-    emp.records.forEach(r => {
+    const weekMap = {};
+    const sorted = [...emp.records].sort((a, b) => new Date(a.data) - new Date(b.data));
+    sorted.forEach(r => {
       const d = new Date(r.data);
-      const oneJan = new Date(d.getFullYear(), 0, 1);
-      const weekNum = Math.ceil(((d - oneJan) / 86400000 + oneJan.getDay() + 1) / 7);
-      const weekKey = `${d.getFullYear()}-W${weekNum}`;
-      if (!weeks[weekKey]) weeks[weekKey] = { extras: 0, records: [] };
-      weeks[weekKey].extras += (parseFloat(r.horas_extras) || 0);
-      weeks[weekKey].records.push(r);
+      // ISO week: Monday-based
+      const dayOfWeek = d.getDay();
+      const monday = new Date(d);
+      monday.setDate(d.getDate() - ((dayOfWeek + 6) % 7));
+      const weekKey = `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
+      if (!weekMap[weekKey]) weekMap[weekKey] = { start: monday, records: [], totalExtras: 0 };
+      weekMap[weekKey].records.push(r);
+      weekMap[weekKey].totalExtras += (parseFloat(r.horas_extras) || 0);
     });
-    let totalExtrasReais = 0;
-    let totalCompensacao = 0;
-    let totalExtrasBruto = 0;
-    Object.values(weeks).forEach(w => {
-      totalExtrasBruto += w.extras;
-      if (emp.tipo_folha === 'atipica') {
-        const comp = Math.min(w.extras, debitoSemanal);
-        totalCompensacao += comp;
-        totalExtrasReais += Math.max(0, w.extras - debitoSemanal);
-      } else {
-        totalExtrasReais += w.extras;
-      }
+    let totalExtrasReais = 0, totalCompensacao = 0, totalExtrasBruto = 0;
+    const weeks = Object.keys(weekMap).sort().map((wk, idx) => {
+      const w = weekMap[wk];
+      const weekExtras = w.totalExtras;
+      totalExtrasBruto += weekExtras;
+      let weekComp = 0, weekReal = 0;
+      // Classify each day within this week
+      let cumExtras = 0;
+      const classifiedRecords = w.records.map(r => {
+        const he = parseFloat(r.horas_extras) || 0;
+        let dayComp = 0, dayReal = 0;
+        if (he > 0 && emp.tipo_folha === 'atipica') {
+          const remainingDebt = Math.max(0, debitoSemanal - cumExtras);
+          dayComp = Math.min(he, remainingDebt);
+          dayReal = Math.max(0, he - remainingDebt);
+        } else if (he > 0) {
+          dayReal = he;
+        }
+        cumExtras += he;
+        weekComp += dayComp;
+        weekReal += dayReal;
+        return { ...r, dayComp: Math.round(dayComp * 100) / 100, dayReal: Math.round(dayReal * 100) / 100 };
+      });
+      totalCompensacao += weekComp;
+      totalExtrasReais += weekReal;
+      const endDate = new Date(w.start);
+      endDate.setDate(endDate.getDate() + 6);
+      return { weekKey: wk, weekNum: idx + 1, start: w.start, end: endDate, records: classifiedRecords, totalExtras: Math.round(weekExtras * 100) / 100, weekComp: Math.round(weekComp * 100) / 100, weekReal: Math.round(weekReal * 100) / 100 };
     });
-    return { totalExtrasBruto: Math.round(totalExtrasBruto * 100) / 100, totalCompensacao: Math.round(totalCompensacao * 100) / 100, totalExtrasReais: Math.round(totalExtrasReais * 100) / 100, debitoSemanal };
+    return { weeks, totalExtrasBruto: Math.round(totalExtrasBruto * 100) / 100, totalCompensacao: Math.round(totalCompensacao * 100) / 100, totalExtrasReais: Math.round(totalExtrasReais * 100) / 100, debitoSemanal };
   };
 
   const calcExtrasReais = (emp) => calcWeeklySummary(emp).totalExtrasReais;
@@ -313,6 +326,8 @@ export default function RelatoriosPontoPage() {
                   const recs = monthGroups[ym];
                   const monthEmp = { ...selectedEmployee, records: recs };
                   const summary = calcWeeklySummary(monthEmp);
+                  const isAtip = selectedEmployee.tipo_folha === 'atipica';
+                  const fmtDate = (d) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
                   return (
                     <div key={ym} className="card" style={{ marginBottom: '16px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
@@ -326,45 +341,61 @@ export default function RelatoriosPontoPage() {
                           </button>
                         </div>
                       </div>
-                      {/* Summary row */}
-                      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '12px', marginBottom: '12px', padding: '8px', background: 'var(--bg)', borderRadius: '6px' }}>
-                        <span>Registros: <strong>{recs.length}</strong></span>
-                        <span>Excedentes (bruto): <strong>{summary.totalExtrasBruto}h</strong></span>
-                        {selectedEmployee.tipo_folha === 'atipica' && (
-                          <span style={{ color: '#1565c0' }}>Compensação: <strong>{summary.totalCompensacao}h</strong></span>
-                        )}
-                        <span style={{ color: summary.totalExtrasReais > 0 ? '#d32f2f' : 'inherit' }}>
-                          HE Reais: <strong>{summary.totalExtrasReais}h</strong>
-                        </span>
-                      </div>
-                      {/* Records table */}
-                      <div className="table-responsive">
-                        <table className="table" style={{ width: '100%', fontSize: '12px' }}>
-                          <thead>
-                            <tr>
-                              <th>Data</th><th>Tipo</th><th>Entrada</th><th>S.Alm</th><th>V.Alm</th><th>Saída</th><th>H.Exc</th><th>Obs</th><th></th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {recs.map(r => (
-                              <tr key={r.id}>
-                                <td>{new Date(r.data).toLocaleDateString('pt-BR')}</td>
-                                <td style={{ textTransform: 'capitalize' }}>{r.tipo_dia || 'Normal'}</td>
-                                <td>{r.entrada ? r.entrada.substring(0,5) : '-'}</td>
-                                <td>{r.saida_almoco ? r.saida_almoco.substring(0,5) : '-'}</td>
-                                <td>{r.volta_almoco ? r.volta_almoco.substring(0,5) : '-'}</td>
-                                <td>{r.saida ? r.saida.substring(0,5) : '-'}</td>
-                                <td><strong style={{ color: r.horas_extras > 0 ? 'var(--primary)' : 'inherit' }}>{r.horas_extras}h</strong></td>
-                                <td style={{ maxWidth: '80px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={r.observacao}>{r.observacao}</td>
-                                <td>
-                                  <button className="icon-btn edit" onClick={(e) => { e.stopPropagation(); handleOpenEdit(r); }} title="Editar">
-                                    <FiEdit2 size={14} />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                      {/* Weekly breakdown */}
+                      {summary.weeks.map(week => (
+                        <div key={week.weekKey} style={{ marginBottom: '14px', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--bg-secondary)', fontSize: '12px', fontWeight: 600, flexWrap: 'wrap', gap: '6px' }}>
+                            <span>Semana {week.weekNum} ({fmtDate(week.start)} - {fmtDate(week.end)})</span>
+                            <div style={{ display: 'flex', gap: '12px', fontSize: '11px' }}>
+                              <span>Exc: {week.totalExtras}h</span>
+                              {isAtip && <span style={{ color: '#1565c0' }}>Comp: {week.weekComp}h</span>}
+                              <span style={{ color: week.weekReal > 0 ? '#d32f2f' : 'inherit', fontWeight: week.weekReal > 0 ? 700 : 400 }}>HE Real: {week.weekReal}h</span>
+                            </div>
+                          </div>
+                          <div className="table-responsive">
+                            <table className="table" style={{ width: '100%', fontSize: '11px', margin: 0 }}>
+                              <thead>
+                                <tr>
+                                  <th>Data</th><th>Tipo</th><th>Entrada</th><th>S.Alm</th><th>V.Alm</th><th>Saída</th><th>H.Exc</th>{isAtip && <th>Classif.</th>}<th>Obs</th><th></th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {week.records.map(r => {
+                                  const he = parseFloat(r.horas_extras) || 0;
+                                  const isReal = r.dayReal > 0;
+                                  return (
+                                    <tr key={r.id} style={isReal ? { background: 'rgba(211,47,47,0.07)' } : {}}>
+                                      <td>{new Date(r.data).toLocaleDateString('pt-BR')}</td>
+                                      <td style={{ textTransform: 'capitalize' }}>{r.tipo_dia || 'Normal'}</td>
+                                      <td>{r.entrada ? r.entrada.substring(0,5) : '-'}</td>
+                                      <td>{r.saida_almoco ? r.saida_almoco.substring(0,5) : '-'}</td>
+                                      <td>{r.volta_almoco ? r.volta_almoco.substring(0,5) : '-'}</td>
+                                      <td>{r.saida ? r.saida.substring(0,5) : '-'}</td>
+                                      <td><strong style={{ color: isReal ? '#d32f2f' : he > 0 ? '#1565c0' : 'inherit' }}>{he}h</strong></td>
+                                      {isAtip && <td style={{ fontSize: '10px', fontWeight: 600, color: isReal ? '#d32f2f' : he > 0 ? '#1565c0' : '#999' }}>
+                                        {he === 0 ? '-' : isReal ? `HE Real ${r.dayReal}h` : `Comp ${r.dayComp}h`}
+                                        {r.dayReal > 0 && r.dayComp > 0 && <><br/><span style={{ color: '#1565c0' }}>Comp {r.dayComp}h</span></>}
+                                      </td>}
+                                      <td style={{ maxWidth: '60px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={r.observacao}>{r.observacao}</td>
+                                      <td>
+                                        <button className="icon-btn edit" onClick={(e) => { e.stopPropagation(); handleOpenEdit(r); }} title="Editar">
+                                          <FiEdit2 size={12} />
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      ))}
+                      {/* Monthly total */}
+                      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '13px', padding: '10px 12px', background: 'var(--bg-secondary)', borderRadius: '6px', fontWeight: 600, marginTop: '4px' }}>
+                        <span>📊 Total Mensal:</span>
+                        <span>Excedentes: {summary.totalExtrasBruto}h</span>
+                        {isAtip && <span style={{ color: '#1565c0' }}>Compensação: {summary.totalCompensacao}h</span>}
+                        <span style={{ color: summary.totalExtrasReais > 0 ? '#d32f2f' : 'inherit' }}>HE Reais: {summary.totalExtrasReais}h</span>
                       </div>
                     </div>
                   );

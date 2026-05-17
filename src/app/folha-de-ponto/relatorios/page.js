@@ -76,7 +76,7 @@ export default function RelatoriosPontoPage() {
       if (recs.length === 0) return;
       const classifCol = isAtipica ? '<th>Classificação</th>' : '';
       weekTablesHTML += `<h3 style="font-size:13px;margin:18px 0 6px 0;border-bottom:1px solid #eee;padding-bottom:4px;">Semana ${week.weekNum} (${fmtD(week.start)} - ${fmtD(week.end)})</h3>`;
-      weekTablesHTML += `<table><thead><tr><th>Data</th><th>Tipo</th><th>Entrada</th><th>S. Almoço</th><th>V. Almoço</th><th>Saída</th><th>H. Exc</th>${classifCol}<th>Obs</th></tr></thead><tbody>`;
+      weekTablesHTML += `<table><thead><tr><th>Data</th><th>Dia</th><th>Tipo</th><th>Entrada</th><th>S. Almoço</th><th>V. Almoço</th><th>Saída</th><th>H. Exc</th>${classifCol}<th>Obs</th></tr></thead><tbody>`;
       recs.forEach(r => {
         const he = parseFloat(r.horas_extras) || 0;
         const isReal = r.dayReal > 0;
@@ -88,7 +88,8 @@ export default function RelatoriosPontoPage() {
           else if (isReal) classifCell = `<td class="extra">HE Real ${r.dayReal}h</td>`;
           else classifCell = `<td class="compensacao">Comp ${r.dayComp}h</td>`;
         }
-        weekTablesHTML += `<tr${rowStyle}><td>${new Date(r.data).toLocaleDateString('pt-BR')}</td><td style="text-transform:capitalize;">${r.tipo_dia || 'Normal'}</td><td>${r.entrada ? r.entrada.substring(0,5) : '-'}</td><td>${r.saida_almoco ? r.saida_almoco.substring(0,5) : '-'}</td><td>${r.volta_almoco ? r.volta_almoco.substring(0,5) : '-'}</td><td>${r.saida ? r.saida.substring(0,5) : '-'}</td><td class="${isReal ? 'extra' : he > 0 ? 'compensacao' : ''}">${he}h</td>${classifCell}<td>${r.observacao || ''}</td></tr>`;
+        const diaSemPdf = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][new Date(r.data).getDay()];
+        weekTablesHTML += `<tr${rowStyle}><td>${new Date(r.data).toLocaleDateString('pt-BR')}</td><td>${diaSemPdf}</td><td style="text-transform:capitalize;">${r.tipo_dia || 'Normal'}</td><td>${r.entrada ? r.entrada.substring(0,5) : '-'}</td><td>${r.saida_almoco ? r.saida_almoco.substring(0,5) : '-'}</td><td>${r.volta_almoco ? r.volta_almoco.substring(0,5) : '-'}</td><td>${r.saida ? r.saida.substring(0,5) : '-'}</td><td class="${isReal ? 'extra' : he > 0 ? 'compensacao' : ''}">${he}h</td>${classifCell}<td>${r.observacao || ''}</td></tr>`;
       });
       weekTablesHTML += `</tbody></table>`;
       // Week summary
@@ -356,7 +357,7 @@ export default function RelatoriosPontoPage() {
                             <table className="table" style={{ width: '100%', fontSize: '11px', margin: 0 }}>
                               <thead>
                                 <tr>
-                                  <th>Data</th><th>Tipo</th><th>Entrada</th><th>S.Alm</th><th>V.Alm</th><th>Saída</th><th>H.Exc</th>{isAtip && <th>Classif.</th>}<th>Obs</th><th></th>
+                                  <th>Data</th><th>Dia</th><th>Tipo</th><th>Entrada</th><th>S.Alm</th><th>V.Alm</th><th>Saída</th><th>H.Exc</th>{isAtip && <th>Classif.</th>}<th>Obs</th><th></th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -366,6 +367,7 @@ export default function RelatoriosPontoPage() {
                                   return (
                                     <tr key={r.id} style={isReal ? { background: 'rgba(211,47,47,0.07)' } : {}}>
                                       <td>{new Date(r.data).toLocaleDateString('pt-BR')}</td>
+                                      <td>{['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][new Date(r.data).getDay()]}</td>
                                       <td style={{ textTransform: 'capitalize' }}>{r.tipo_dia || 'Normal'}</td>
                                       <td>{r.entrada ? r.entrada.substring(0,5) : '-'}</td>
                                       <td>{r.saida_almoco ? r.saida_almoco.substring(0,5) : '-'}</td>

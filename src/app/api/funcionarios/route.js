@@ -96,15 +96,38 @@ export async function POST(request) {
       const dayKey = dayKeys[dayOfWeek];
       const jornadaDia = jornadaObj[dayKey];
       
-      if (jornadaDia === null || jornadaDia === undefined) continue;
+      const isFalta = day === 15 && jornadaDia; 
+      const isFolgaTrabalhada = day === 20;
+      const isFeriadoTrabalhado = day === 10;
+      
+      if (!jornadaDia && !isFolgaTrabalhada && !isFeriadoTrabalhado) continue;
       
       let tipoDia = 'normal';
-      if (dayOfWeek === 0) tipoDia = 'feriado';
+      let observacao = '';
       
-      const entrada = jornadaDia.entrada || '09:00';
-      const saidaAlmoco = jornadaDia.saida_almoco || '12:00';
-      const voltaAlmoco = jornadaDia.volta_almoco || '13:00';
-      let saida = jornadaDia.saida || '18:00';
+      if (isFalta) {
+        tipoDia = 'falta';
+        observacao = 'Falta Injustificada Simulada';
+      } else if (isFeriadoTrabalhado) {
+        tipoDia = 'feriado';
+        observacao = 'Trabalho Feriado Simulado';
+      } else if (isFolgaTrabalhada) {
+        tipoDia = 'folga';
+        observacao = 'Trabalho na Folga Simulado';
+      } else if (dayOfWeek === 0) {
+        tipoDia = 'feriado';
+      }
+      
+      if (isFalta) {
+        records.push({ funcionarioId, data: dateStr, tipoDia, entrada: '', saidaAlmoco: '', voltaAlmoco: '', saida: '', horasExtras: 0, observacao });
+        continue;
+      }
+      
+      const activeJornada = jornadaDia || { entrada: '09:00', saida_almoco: '12:00', volta_almoco: '13:00', saida: '18:00' };
+      const entrada = activeJornada.entrada || '09:00';
+      const saidaAlmoco = activeJornada.saida_almoco || '12:00';
+      const voltaAlmoco = activeJornada.volta_almoco || '13:00';
+      let saida = activeJornada.saida || '18:00';
       
       const [eh, em] = entrada.split(':').map(Number);
       const [sah, sam] = saidaAlmoco.split(':').map(Number);
@@ -146,7 +169,13 @@ export async function POST(request) {
       const [fsh, fsm] = saida.split(':').map(Number);
       const totalMinutes = ((sah * 60 + sam) - (eh * 60 + em)) + ((fsh * 60 + fsm) - (vah * 60 + vam));
       const totalHours = totalMinutes / 60;
-      const horasExtras = Math.max(0, Math.round((totalHours - baseHours) * 100) / 100);
+      
+      let horasExtras = 0;
+      if (tipoDia === 'feriado' || tipoDia === 'folga') {
+        horasExtras = Math.round(totalHours * 100) / 100;
+      } else {
+        horasExtras = Math.max(0, Math.round((totalHours - baseHours) * 100) / 100);
+      }
       
       records.push({
         funcionarioId,
@@ -156,7 +185,8 @@ export async function POST(request) {
         saidaAlmoco,
         voltaAlmoco,
         saida,
-        horasExtras
+        horasExtras,
+        observacao
       });
     }
     
@@ -167,8 +197,8 @@ export async function POST(request) {
     for (const r of records) {
       try {
         await sql`
-          INSERT INTO registros_ponto (funcionario_id, data, tipo_dia, entrada, saida_almoco, volta_almoco, saida, horas_extras)
-          VALUES (${r.funcionarioId}, ${r.data}, ${r.tipoDia}, ${r.entrada}, ${r.saidaAlmoco}, ${r.voltaAlmoco}, ${r.saida}, ${r.horasExtras})
+          INSERT INTO registros_ponto (funcionario_id, data, tipo_dia, entrada, saida_almoco, volta_almoco, saida, horas_extras, observacao)
+          VALUES (${r.funcionarioId}, ${r.data}, ${r.tipoDia}, ${r.entrada}, ${r.saidaAlmoco}, ${r.voltaAlmoco}, ${r.saida}, ${r.horasExtras}, ${r.observacao || ''})
           ON CONFLICT (funcionario_id, data) DO NOTHING
         `;
         inserted++;

@@ -89,6 +89,7 @@ export default function RelatoriosPontoPage() {
         let classifCell = '';
         if (isAtipica) {
           if (he === 0) classifCell = '<td style="color:#999;">-</td>';
+          else if (r.is100) classifCell = `<td class="extra" style="font-weight:bold;">HE Real 100% (${r.dayReal}h)</td>`;
           else if (isReal && r.dayComp > 0) classifCell = `<td><span class="extra">HE Real ${r.dayReal}h</span><br><span class="compensacao">Comp ${r.dayComp}h</span></td>`;
           else if (isReal) classifCell = `<td class="extra">HE Real ${r.dayReal}h</td>`;
           else classifCell = `<td class="compensacao">Comp ${r.dayComp}h</td>`;
@@ -195,17 +196,23 @@ export default function RelatoriosPontoPage() {
       const classifiedRecords = w.records.map(r => {
         const he = parseFloat(r.horas_extras) || 0;
         let dayComp = 0, dayReal = 0;
-        if (he > 0 && emp.tipo_folha === 'atipica') {
-          const remainingDebt = Math.max(0, debitoSemanal - cumExtras);
-          dayComp = Math.min(he, remainingDebt);
-          dayReal = Math.max(0, he - remainingDebt);
-        } else if (he > 0) {
-          dayReal = he;
+        let is100 = false;
+        if (he > 0) {
+          if (r.tipo_dia === 'feriado' || r.tipo_dia === 'folga') {
+            dayReal = he;
+            is100 = true;
+          } else if (emp.tipo_folha === 'atipica') {
+            const remainingDebt = Math.max(0, debitoSemanal - cumExtras);
+            dayComp = Math.min(he, remainingDebt);
+            dayReal = Math.max(0, he - remainingDebt);
+            cumExtras += he;
+          } else {
+            dayReal = he;
+          }
         }
-        cumExtras += he;
         weekComp += dayComp;
         weekReal += dayReal;
-        return { ...r, dayComp: Math.round(dayComp * 100) / 100, dayReal: Math.round(dayReal * 100) / 100 };
+        return { ...r, dayComp: Math.round(dayComp * 100) / 100, dayReal: Math.round(dayReal * 100) / 100, is100 };
       });
       totalCompensacao += weekComp;
       totalExtrasReais += weekReal;
@@ -418,8 +425,8 @@ export default function RelatoriosPontoPage() {
                                       <td>{r.saida ? r.saida.substring(0,5) : '-'}</td>
                                       <td><strong style={{ color: isReal ? '#d32f2f' : he > 0 ? '#1565c0' : 'inherit' }}>{he}h</strong></td>
                                       {isAtip && <td style={{ fontSize: '10px', fontWeight: 600, color: isReal ? '#d32f2f' : he > 0 ? '#1565c0' : '#999' }}>
-                                        {he === 0 ? '-' : isReal ? `HE Real ${r.dayReal}h` : `Comp ${r.dayComp}h`}
-                                        {r.dayReal > 0 && r.dayComp > 0 && <><br/><span style={{ color: '#1565c0' }}>Comp {r.dayComp}h</span></>}
+                                        {he === 0 ? '-' : r.is100 ? `HE Real 100% (${r.dayReal}h)` : isReal ? `HE Real ${r.dayReal}h` : `Comp ${r.dayComp}h`}
+                                        {r.dayReal > 0 && r.dayComp > 0 && !r.is100 && <><br/><span style={{ color: '#1565c0' }}>Comp {r.dayComp}h</span></>}
                                       </td>}
                                       <td style={{ maxWidth: '60px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={r.observacao}>{r.observacao}</td>
                                       <td>

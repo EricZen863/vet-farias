@@ -110,7 +110,7 @@ export default function CheckinPage() {
                   onChange={(e) => setTipoDia(e.target.value)}
                 >
                   <option value="normal">Dia Normal</option>
-                  <option value="folga">Dia de Folga</option>
+                  <option value="folga">Folga Trabalhada</option>
                   <option value="feriado">Feriado</option>
                 </select>
               </div>

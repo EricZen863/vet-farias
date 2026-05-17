@@ -93,18 +93,29 @@ export default function RelatoriosPontoPage() {
       });
       weekTablesHTML += `</tbody></table>`;
       // Week summary
-      weekTablesHTML += `<div style="display:flex;gap:20px;font-size:11px;padding:6px 8px;background:#f5f5f5;border-radius:4px;margin-top:4px;">`;
+      weekTablesHTML += `<div style="display:flex;flex-direction:column;gap:6px;font-size:11px;padding:8px;background:#f5f5f5;border-radius:4px;margin-top:4px;">`;
+      weekTablesHTML += `<div style="display:flex;gap:20px;">`;
       weekTablesHTML += `<span><strong>Exc:</strong> ${week.totalExtras}h</span>`;
       if (isAtipica) weekTablesHTML += `<span style="color:#1565c0;"><strong>Comp:</strong> ${week.weekComp}h</span>`;
       weekTablesHTML += `<span style="color:${week.weekReal > 0 ? '#d32f2f' : '#333'};"><strong>HE Real:</strong> ${week.weekReal}h</span>`;
       weekTablesHTML += `</div>`;
+      weekTablesHTML += `<div style="display:flex;gap:20px;color:#555;">`;
+      weekTablesHTML += `<span><strong>Feriados:</strong> ${week.feriados}</span>`;
+      weekTablesHTML += `<span><strong>Folgas:</strong> ${week.folgas}</span>`;
+      weekTablesHTML += `<span><strong>Faltas:</strong> ${week.faltas}</span>`;
+      weekTablesHTML += `</div></div>`;
     });
 
     // Monthly total
-    let monthTotalHTML = `<div style="margin-top:16px;padding:10px;border:2px solid #333;border-radius:6px;font-size:13px;">`;
-    monthTotalHTML += `<strong>📊 TOTAL MENSAL:</strong>&nbsp;&nbsp; Excedentes: ${summary.totalExtrasBruto}h`;
+    let monthTotalHTML = `<div style="margin-top:16px;padding:10px;border:2px solid #333;border-radius:6px;font-size:13px;display:flex;flex-direction:column;gap:8px;">`;
+    monthTotalHTML += `<div><strong>📊 TOTAL MENSAL:</strong>&nbsp;&nbsp; Excedentes: ${summary.totalExtrasBruto}h`;
     if (isAtipica) monthTotalHTML += `&nbsp;&nbsp;|&nbsp;&nbsp;<span style="color:#1565c0;">Compensação: ${summary.totalCompensacao}h</span>`;
     monthTotalHTML += `&nbsp;&nbsp;|&nbsp;&nbsp;<span style="color:#d32f2f;font-weight:bold;">HE Reais: ${summary.totalExtrasReais}h</span></div>`;
+    monthTotalHTML += `<div style="font-size:12px;color:#555;">`;
+    monthTotalHTML += `<strong>Feriados:</strong> ${summary.totalFeriados}&nbsp;&nbsp;|&nbsp;&nbsp;`;
+    monthTotalHTML += `<strong>Folgas:</strong> ${summary.totalFolgas}&nbsp;&nbsp;|&nbsp;&nbsp;`;
+    monthTotalHTML += `<strong>Faltas:</strong> ${summary.totalFaltas}`;
+    monthTotalHTML += `</div></div>`;
 
     const printWindow = window.open('', '_blank');
     const html = `<html><head><title>Relatório - ${emp.nome} - ${recMonth}</title>
@@ -160,11 +171,15 @@ export default function RelatoriosPontoPage() {
       const monday = new Date(d);
       monday.setDate(d.getDate() - ((dayOfWeek + 6) % 7));
       const weekKey = `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
-      if (!weekMap[weekKey]) weekMap[weekKey] = { start: monday, records: [], totalExtras: 0 };
+      if (!weekMap[weekKey]) weekMap[weekKey] = { start: monday, records: [], totalExtras: 0, feriados: 0, folgas: 0, faltas: 0 };
       weekMap[weekKey].records.push(r);
       weekMap[weekKey].totalExtras += (parseFloat(r.horas_extras) || 0);
+      if (r.tipo_dia === 'feriado') weekMap[weekKey].feriados += 1;
+      if (r.tipo_dia === 'folga') weekMap[weekKey].folgas += 1;
+      if (r.tipo_dia === 'falta') weekMap[weekKey].faltas += 1;
     });
     let totalExtrasReais = 0, totalCompensacao = 0, totalExtrasBruto = 0;
+    let totalFeriados = 0, totalFolgas = 0, totalFaltas = 0;
     const weeks = Object.keys(weekMap).sort().map((wk, idx) => {
       const w = weekMap[wk];
       const weekExtras = w.totalExtras;
@@ -189,11 +204,22 @@ export default function RelatoriosPontoPage() {
       });
       totalCompensacao += weekComp;
       totalExtrasReais += weekReal;
+      totalFeriados += w.feriados;
+      totalFolgas += w.folgas;
+      totalFaltas += w.faltas;
       const endDate = new Date(w.start);
       endDate.setDate(endDate.getDate() + 6);
-      return { weekKey: wk, weekNum: idx + 1, start: w.start, end: endDate, records: classifiedRecords, totalExtras: Math.round(weekExtras * 100) / 100, weekComp: Math.round(weekComp * 100) / 100, weekReal: Math.round(weekReal * 100) / 100 };
+      return { 
+        weekKey: wk, weekNum: idx + 1, start: w.start, end: endDate, records: classifiedRecords, 
+        totalExtras: Math.round(weekExtras * 100) / 100, weekComp: Math.round(weekComp * 100) / 100, weekReal: Math.round(weekReal * 100) / 100,
+        feriados: w.feriados, folgas: w.folgas, faltas: w.faltas
+      };
     });
-    return { weeks, totalExtrasBruto: Math.round(totalExtrasBruto * 100) / 100, totalCompensacao: Math.round(totalCompensacao * 100) / 100, totalExtrasReais: Math.round(totalExtrasReais * 100) / 100, debitoSemanal };
+    return { 
+      weeks, totalExtrasBruto: Math.round(totalExtrasBruto * 100) / 100, totalCompensacao: Math.round(totalCompensacao * 100) / 100, 
+      totalExtrasReais: Math.round(totalExtrasReais * 100) / 100, debitoSemanal,
+      totalFeriados, totalFolgas, totalFaltas
+    };
   };
 
   const calcExtrasReais = (emp) => calcWeeklySummary(emp).totalExtrasReais;
@@ -214,6 +240,11 @@ export default function RelatoriosPontoPage() {
       resumoHTML += `<p><strong>Compensação de Débito:</strong> ${summary.totalCompensacao}h</p>`;
     }
     resumoHTML += `<p style="font-size:14px;"><strong>✅ Horas Extras Reais:</strong> <span style="color:#d32f2f;font-size:16px;font-weight:bold;">${summary.totalExtrasReais}h</span></p>`;
+    resumoHTML += `<div style="display:flex;gap:20px;margin-top:10px;font-size:12px;color:#555;border-top:1px dashed #ccc;padding-top:10px;">`;
+    resumoHTML += `<span><strong>Feriados:</strong> ${summary.totalFeriados}</span>`;
+    resumoHTML += `<span><strong>Folgas:</strong> ${summary.totalFolgas}</span>`;
+    resumoHTML += `<span><strong>Faltas:</strong> ${summary.totalFaltas}</span>`;
+    resumoHTML += `</div>`;
     return `
       <div style="display:flex;gap:30px;flex-wrap:wrap;margin-bottom:15px;font-size:12px;border:1px solid #ddd;padding:12px;border-radius:6px;background:#fafafa;">
         <div><strong>Nome:</strong> ${emp.nome}</div>
@@ -345,12 +376,19 @@ export default function RelatoriosPontoPage() {
                       {/* Weekly breakdown */}
                       {summary.weeks.map(week => (
                         <div key={week.weekKey} style={{ marginBottom: '14px', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--bg-secondary)', fontSize: '12px', fontWeight: 600, flexWrap: 'wrap', gap: '6px' }}>
-                            <span>Semana {week.weekNum} ({fmtDate(week.start)} - {fmtDate(week.end)})</span>
-                            <div style={{ display: 'flex', gap: '12px', fontSize: '11px' }}>
-                              <span>Exc: {week.totalExtras}h</span>
-                              {isAtip && <span style={{ color: '#1565c0' }}>Comp: {week.weekComp}h</span>}
-                              <span style={{ color: week.weekReal > 0 ? '#d32f2f' : 'inherit', fontWeight: week.weekReal > 0 ? 700 : 400 }}>HE Real: {week.weekReal}h</span>
+                          <div style={{ padding: '8px 12px', background: 'var(--bg-secondary)', fontSize: '12px', fontWeight: 600 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                              <span>Semana {week.weekNum} ({fmtDate(week.start)} - {fmtDate(week.end)})</span>
+                              <div style={{ display: 'flex', gap: '12px', fontSize: '11px' }}>
+                                <span>Exc: {week.totalExtras}h</span>
+                                {isAtip && <span style={{ color: '#1565c0' }}>Comp: {week.weekComp}h</span>}
+                                <span style={{ color: week.weekReal > 0 ? '#d32f2f' : 'inherit', fontWeight: week.weekReal > 0 ? 700 : 400 }}>HE Real: {week.weekReal}h</span>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '16px', fontSize: '11px', marginTop: '6px', color: 'var(--text-secondary)' }}>
+                              <span>Feriados: {week.feriados}</span>
+                              <span>Folgas: {week.folgas}</span>
+                              <span>Faltas: {week.faltas}</span>
                             </div>
                           </div>
                           <div className="table-responsive">
@@ -393,11 +431,18 @@ export default function RelatoriosPontoPage() {
                         </div>
                       ))}
                       {/* Monthly total */}
-                      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '13px', padding: '10px 12px', background: 'var(--bg-secondary)', borderRadius: '6px', fontWeight: 600, marginTop: '4px' }}>
-                        <span>📊 Total Mensal:</span>
-                        <span>Excedentes: {summary.totalExtrasBruto}h</span>
-                        {isAtip && <span style={{ color: '#1565c0' }}>Compensação: {summary.totalCompensacao}h</span>}
-                        <span style={{ color: summary.totalExtrasReais > 0 ? '#d32f2f' : 'inherit' }}>HE Reais: {summary.totalExtrasReais}h</span>
+                      <div style={{ padding: '10px 12px', background: 'var(--bg-secondary)', borderRadius: '6px', fontWeight: 600, marginTop: '4px', fontSize: '13px' }}>
+                        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                          <span>📊 Total Mensal:</span>
+                          <span>Excedentes: {summary.totalExtrasBruto}h</span>
+                          {isAtip && <span style={{ color: '#1565c0' }}>Compensação: {summary.totalCompensacao}h</span>}
+                          <span style={{ color: summary.totalExtrasReais > 0 ? '#d32f2f' : 'inherit' }}>HE Reais: {summary.totalExtrasReais}h</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '8px', fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                          <span>Feriados: {summary.totalFeriados}</span>
+                          <span>Folgas: {summary.totalFolgas}</span>
+                          <span>Faltas: {summary.totalFaltas}</span>
+                        </div>
                       </div>
                     </div>
                   );

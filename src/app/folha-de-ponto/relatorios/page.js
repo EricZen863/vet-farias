@@ -140,6 +140,11 @@ export default function RelatoriosPontoPage() {
       ${weekTablesHTML}
       ${monthTotalHTML}
       ${isAtipica ? '<p style="font-size:10px;color:#666;margin-top:12px;">* Horas excedentes compensam o débito semanal primeiro. Somente o excedente além do débito = Hora Extra Real.</p>' : ''}
+      <div style="margin-top: 50px; text-align: center; font-size: 12px; page-break-inside: avoid;">
+        <div style="width: 300px; border-bottom: 1px solid #333; margin: 0 auto 10px auto;"></div>
+        Assinatura do Funcionário<br />
+        <strong>${emp.nome}</strong>
+      </div>
       <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }</script>
     </body></html>`;
     printWindow.document.write(html);

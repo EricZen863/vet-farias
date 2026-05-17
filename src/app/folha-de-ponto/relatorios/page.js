@@ -12,6 +12,11 @@ export default function RelatoriosPontoPage() {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [editingRecord, setEditingRecord] = useState(null);
 
+  const parseDate = (dStr) => {
+    if (!dStr) return new Date();
+    return new Date(dStr.split('T')[0] + 'T12:00:00');
+  };
+
   useEffect(() => {
     if (userType === 'admin') {
       loadRegistros();
@@ -88,8 +93,8 @@ export default function RelatoriosPontoPage() {
           else if (isReal) classifCell = `<td class="extra">HE Real ${r.dayReal}h</td>`;
           else classifCell = `<td class="compensacao">Comp ${r.dayComp}h</td>`;
         }
-        const diaSemPdf = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][new Date(r.data).getDay()];
-        weekTablesHTML += `<tr${rowStyle}><td>${new Date(r.data).toLocaleDateString('pt-BR')}</td><td>${diaSemPdf}</td><td style="text-transform:capitalize;">${r.tipo_dia || 'Normal'}</td><td>${r.entrada ? r.entrada.substring(0,5) : '-'}</td><td>${r.saida_almoco ? r.saida_almoco.substring(0,5) : '-'}</td><td>${r.volta_almoco ? r.volta_almoco.substring(0,5) : '-'}</td><td>${r.saida ? r.saida.substring(0,5) : '-'}</td><td class="${isReal ? 'extra' : he > 0 ? 'compensacao' : ''}">${he}h</td>${classifCell}<td>${r.observacao || ''}</td></tr>`;
+        const diaSemPdf = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][parseDate(r.data).getDay()];
+        weekTablesHTML += `<tr${rowStyle}><td>${parseDate(r.data).toLocaleDateString('pt-BR')}</td><td>${diaSemPdf}</td><td style="text-transform:capitalize;">${r.tipo_dia || 'Normal'}</td><td>${r.entrada ? r.entrada.substring(0,5) : '-'}</td><td>${r.saida_almoco ? r.saida_almoco.substring(0,5) : '-'}</td><td>${r.volta_almoco ? r.volta_almoco.substring(0,5) : '-'}</td><td>${r.saida ? r.saida.substring(0,5) : '-'}</td><td class="${isReal ? 'extra' : he > 0 ? 'compensacao' : ''}">${he}h</td>${classifCell}<td>${r.observacao || ''}</td></tr>`;
       });
       weekTablesHTML += `</tbody></table>`;
       // Week summary
@@ -163,9 +168,9 @@ export default function RelatoriosPontoPage() {
   const calcWeeklySummary = (emp) => {
     const debitoSemanal = emp.tipo_folha === 'atipica' ? (44 - (parseInt(emp.carga_horaria_contrato) || 44)) : 0;
     const weekMap = {};
-    const sorted = [...emp.records].sort((a, b) => new Date(a.data) - new Date(b.data));
+    const sorted = [...emp.records].sort((a, b) => parseDate(a.data) - parseDate(b.data));
     sorted.forEach(r => {
-      const d = new Date(r.data);
+      const d = parseDate(r.data);
       // ISO week: Monday-based
       const dayOfWeek = d.getDay();
       const monday = new Date(d);
@@ -328,7 +333,7 @@ export default function RelatoriosPontoPage() {
       {selectedEmployee && (() => {
         // Group records by month (YYYY-MM)
         const monthGroups = {};
-        selectedEmployee.records.sort((a, b) => new Date(a.data) - new Date(b.data)).forEach(r => {
+        selectedEmployee.records.sort((a, b) => parseDate(a.data) - parseDate(b.data)).forEach(r => {
           const monthKey = r.data.substring(0, 7);
           if (!monthGroups[monthKey]) monthGroups[monthKey] = [];
           monthGroups[monthKey].push(r);
@@ -404,8 +409,8 @@ export default function RelatoriosPontoPage() {
                                   const isReal = r.dayReal > 0;
                                   return (
                                     <tr key={r.id} style={isReal ? { background: 'rgba(211,47,47,0.07)' } : {}}>
-                                      <td>{new Date(r.data).toLocaleDateString('pt-BR')}</td>
-                                      <td>{['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][new Date(r.data).getDay()]}</td>
+                                      <td>{parseDate(r.data).toLocaleDateString('pt-BR')}</td>
+                                      <td>{['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][parseDate(r.data).getDay()]}</td>
                                       <td style={{ textTransform: 'capitalize' }}>{r.tipo_dia || 'Normal'}</td>
                                       <td>{r.entrada ? r.entrada.substring(0,5) : '-'}</td>
                                       <td>{r.saida_almoco ? r.saida_almoco.substring(0,5) : '-'}</td>
@@ -457,7 +462,7 @@ export default function RelatoriosPontoPage() {
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '500px' }}>
             <div className="modal-header">
-              <h2>Editar Ponto - {new Date(editingRecord.data).toLocaleDateString('pt-BR')}</h2>
+              <h2>Editar Ponto - {parseDate(editingRecord.data).toLocaleDateString('pt-BR')}</h2>
               <button className="close-btn" onClick={() => setEditingRecord(null)}>&times;</button>
             </div>
             <form onSubmit={handleSaveEdit}>

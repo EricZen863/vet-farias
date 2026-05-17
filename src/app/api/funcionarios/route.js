@@ -119,36 +119,21 @@ export async function POST(request) {
       let extraMinutes = 0;
       
       if (tipoFolha === 'atipica') {
-        // Alternating pattern:
-        // Week 0 (1st): Only compensation — total extras ~3h (below 4h debt)
-        // Week 1 (2nd): Exceeds debt — total extras ~6h (2h real overtime)
-        // Week 2 (3rd): Only compensation — total extras ~2.5h (below 4h debt)
-        // Week 3 (4th): Exceeds debt — total extras ~7h (3h real overtime)
-        if (weekNum === 0) {
-          if (dayInWeek === 1 || dayInWeek === 3) extraMinutes = 45;
-          if (dayInWeek === 4) extraMinutes = 30;
-        } else if (weekNum === 1) {
-          if (dayInWeek === 0 || dayInWeek === 2 || dayInWeek === 4) extraMinutes = 60;
-          if (dayInWeek === 1) extraMinutes = 90;
-          if (dayInWeek === 3) extraMinutes = 30;
-        } else if (weekNum === 2) {
-          if (dayInWeek === 2) extraMinutes = 50;
-          if (dayInWeek === 4) extraMinutes = 40;
-          if (dayInWeek === 0) extraMinutes = 30;
-        } else if (weekNum >= 3) {
-          if (dayInWeek === 0 || dayInWeek === 1) extraMinutes = 90;
-          if (dayInWeek === 2 || dayInWeek === 3) extraMinutes = 60;
-          if (dayInWeek === 4) extraMinutes = 40;
-        }
+        // Alternating pattern robust to custom work days:
+        // Week 0: 30 mins/day (~2.5h/week, stays within 4h debt)
+        // Week 1: 75 mins/day (~6.25h/week, exceeds 4h debt -> gives real HE)
+        // Week 2: 30 mins/day (~2.5h/week)
+        // Week 3+: 90 mins/day (~7.5h/week)
+        if (weekNum === 0) extraMinutes = 30;
+        else if (weekNum === 1) extraMinutes = 75;
+        else if (weekNum === 2) extraMinutes = 30;
+        else if (weekNum >= 3) extraMinutes = 90;
       } else {
         // Normal: varied overtime
-        if (weekNum === 0 && (dayInWeek === 1 || dayInWeek === 3)) extraMinutes = 30;
-        if (weekNum === 1 && (dayInWeek === 0 || dayInWeek === 2)) extraMinutes = 60;
-        if (weekNum === 1 && dayInWeek === 4) extraMinutes = 45;
-        if (weekNum === 2 && dayInWeek === 1) extraMinutes = 90;
-        if (weekNum === 2 && dayInWeek === 3) extraMinutes = 30;
-        if (weekNum >= 3 && (dayInWeek === 0 || dayInWeek === 2)) extraMinutes = 60;
-        if (weekNum >= 3 && dayInWeek === 4) extraMinutes = 120;
+        if (weekNum === 0) extraMinutes = 20;
+        else if (weekNum === 1) extraMinutes = 40;
+        else if (weekNum === 2) extraMinutes = 60;
+        else if (weekNum >= 3) extraMinutes = 80;
       }
       
       if (extraMinutes > 0) {

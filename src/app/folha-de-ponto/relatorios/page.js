@@ -95,7 +95,8 @@ export default function RelatoriosPontoPage() {
           else classifCell = `<td class="compensacao">Comp ${r.dayComp}h</td>`;
         }
         const diaSemPdf = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][parseDate(r.data).getDay()];
-        weekTablesHTML += `<tr${rowStyle}><td>${parseDate(r.data).toLocaleDateString('pt-BR')}</td><td>${diaSemPdf}</td><td style="text-transform:capitalize;">${r.tipo_dia || 'Normal'}</td><td>${r.entrada ? r.entrada.substring(0,5) : '-'}</td><td>${r.saida_almoco ? r.saida_almoco.substring(0,5) : '-'}</td><td>${r.volta_almoco ? r.volta_almoco.substring(0,5) : '-'}</td><td>${r.saida ? r.saida.substring(0,5) : '-'}</td><td class="${isReal ? 'extra' : he > 0 ? 'compensacao' : ''}">${he}h</td>${classifCell}<td>${r.observacao || ''}</td></tr>`;
+        const displayTipo = r.tipo_dia === 'folga' && (he > 0 || r.entrada) ? 'Folga Trabalhada' : (r.tipo_dia || 'Normal');
+        weekTablesHTML += `<tr${rowStyle}><td>${parseDate(r.data).toLocaleDateString('pt-BR')}</td><td>${diaSemPdf}</td><td style="text-transform:capitalize;">${displayTipo}</td><td>${r.entrada ? r.entrada.substring(0,5) : '-'}</td><td>${r.saida_almoco ? r.saida_almoco.substring(0,5) : '-'}</td><td>${r.volta_almoco ? r.volta_almoco.substring(0,5) : '-'}</td><td>${r.saida ? r.saida.substring(0,5) : '-'}</td><td class="${isReal ? 'extra' : he > 0 ? 'compensacao' : ''}">${he}h</td>${classifCell}<td>${r.observacao || ''}</td></tr>`;
       });
       weekTablesHTML += `</tbody></table>`;
       // Week summary
@@ -419,11 +420,12 @@ export default function RelatoriosPontoPage() {
                                 {week.records.map(r => {
                                   const he = parseFloat(r.horas_extras) || 0;
                                   const isReal = r.dayReal > 0;
+                                  const displayTipo = r.tipo_dia === 'folga' && (he > 0 || r.entrada) ? 'Folga Trabalhada' : (r.tipo_dia || 'Normal');
                                   return (
                                     <tr key={r.id} style={isReal ? { background: 'rgba(211,47,47,0.07)' } : {}}>
                                       <td>{parseDate(r.data).toLocaleDateString('pt-BR')}</td>
                                       <td>{['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][parseDate(r.data).getDay()]}</td>
-                                      <td style={{ textTransform: 'capitalize' }}>{r.tipo_dia || 'Normal'}</td>
+                                      <td style={{ textTransform: 'capitalize' }}>{displayTipo}</td>
                                       <td>{r.entrada ? r.entrada.substring(0,5) : '-'}</td>
                                       <td>{r.saida_almoco ? r.saida_almoco.substring(0,5) : '-'}</td>
                                       <td>{r.volta_almoco ? r.volta_almoco.substring(0,5) : '-'}</td>

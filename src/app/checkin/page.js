@@ -111,7 +111,7 @@ export default function CheckinPage() {
                 >
                   <option value="normal">Dia Normal</option>
                   <option value="folga">Folga Trabalhada</option>
-                  <option value="feriado">Feriado</option>
+                  <option value="feriado">Feriado Trabalhado</option>
                 </select>
               </div>
             )}

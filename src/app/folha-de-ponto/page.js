@@ -221,12 +221,19 @@ export default function FolhaDePontoPage() {
         <div><strong>CPF:</strong> ${func.cpf}</div>
         <div><strong>Profissão:</strong> ${func.profissao || '-'}</div>
         <div><strong>Tipo Folha:</strong> ${func.tipo_folha === 'atipica' ? 'Atípica' : 'Normal'}</div>
-        <div><strong>Carga Horária:</strong> ${func.carga_horaria_contrato || func.carga_horaria_semanal}h/semana</div>
+        ${func.tipo_folha === 'atipica'
+          ? `<div><strong>Carga Contratada:</strong> ${func.carga_horaria_contrato || func.carga_horaria_semanal}h/semana</div>
+             <div><strong>Compensação Semanal:</strong> ${44 - (parseInt(func.carga_horaria_contrato || func.carga_horaria_semanal) || 44)}h (44h CLT - ${func.carga_horaria_contrato || func.carga_horaria_semanal}h contrato)</div>`
+          : `<div><strong>Carga Horária:</strong> ${func.carga_horaria_semanal}h/semana</div>`
+        }
       </div>
       <details open style="margin-bottom:10px;font-size:10px;">
         <summary style="cursor:pointer;font-weight:bold;font-size:11px;">Jornada Padrão</summary>
         <table class="jornada-table"><thead><tr><th>Dia</th><th>Entrada</th><th>S.Almoço</th><th>V.Almoço</th><th>Saída</th></tr></thead><tbody>${jornadaRows}</tbody></table>
       </details>
+      <div style="margin-bottom:10px;padding:6px 10px;background:#fffde7;border:1px solid #e0d97e;border-radius:5px;font-size:10px;">
+        <strong>Coluna "Tipo" — preencher com:</strong> <em>Normal</em> (dia comum) · <em>Feriado Trabalhado</em> · <em>Folga Trabalhada</em> · <em>Falta</em>
+      </div>
       <table class="main">
         <thead>
           <tr>
@@ -245,9 +252,10 @@ export default function FolhaDePontoPage() {
           ${rows}
         </tbody>
       </table>
-      <div style="margin-top: 30px; text-align: center; font-size: 11px; page-break-inside: avoid;">
-        <div style="width: 280px; border-bottom: 1px solid #333; margin: 0 auto 8px auto;"></div>
-        Assinatura do Responsável<br/>
+      <div style="margin-top: 40px; text-align: center; font-size: 11px; page-break-inside: avoid;">
+        <div style="width: 300px; border-bottom: 1px solid #333; margin: 0 auto 8px auto;"></div>
+        Assinatura do Funcionário<br/>
+        <strong>${func.nome}</strong>
       </div>
       <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }<\/script>
     </body></html>`;

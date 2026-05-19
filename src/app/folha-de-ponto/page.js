@@ -10,6 +10,8 @@ export default function FolhaDePontoPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingFunc, setEditingFunc] = useState(null);
+  const [printFolhaFunc, setPrintFolhaFunc] = useState(null);
+  const [printFolhaMes, setPrintFolhaMes] = useState(new Date().toISOString().substring(0, 7));
 
   // Form states
   const [nome, setNome] = useState('');
@@ -152,6 +154,108 @@ export default function FolhaDePontoPage() {
     }
   };
 
+  const handlePrintFolha = (func, mes) => {
+    const [year, month] = mes.split('-').map(Number);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const monthNames = { 1:'Janeiro',2:'Fevereiro',3:'Março',4:'Abril',5:'Maio',6:'Junho',7:'Julho',8:'Agosto',9:'Setembro',10:'Outubro',11:'Novembro',12:'Dezembro' };
+    const diaLabels = { seg: 'Seg', ter: 'Ter', qua: 'Qua', qui: 'Qui', sex: 'Sex', sab: 'Sáb', dom: 'Dom' };
+    const diaSemNomes = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+    const jornada = typeof func.jornada === 'string' ? JSON.parse(func.jornada) : (func.jornada || {});
+
+    // Build jornada padrão table
+    let jornadaRows = '';
+    ['seg','ter','qua','qui','sex','sab','dom'].forEach(dia => {
+      const j = jornada[dia];
+      jornadaRows += j 
+        ? `<tr><td>${diaLabels[dia]}</td><td>${j.entrada||'-'}</td><td>${j.saida_almoco||'-'}</td><td>${j.volta_almoco||'-'}</td><td>${j.saida||'-'}</td></tr>` 
+        : `<tr><td>${diaLabels[dia]}</td><td colspan="4" style="text-align:center;color:#999;">Folga</td></tr>`;
+    });
+
+    // Build daily rows
+    let rows = '';
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(year, month - 1, d);
+      const diaSem = diaSemNomes[date.getDay()];
+      const dateStr = `${String(d).padStart(2,'0')}/${String(month).padStart(2,'0')}`;
+      const isDomingo = date.getDay() === 0;
+      const bgStyle = isDomingo ? ' style="background:#f9f9f9;"' : '';
+      rows += `<tr${bgStyle}>
+        <td style="text-align:center;font-weight:600;">${dateStr}</td>
+        <td style="text-align:center;">${diaSem}</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>`;
+    }
+
+    const printWindow = window.open('', '_blank');
+    const html = `<html><head><title>Folha de Ponto - ${func.nome} - ${monthNames[month]}/${year}</title>
+      <style>
+        body { font-family: sans-serif; padding: 16px; color: #333; font-size: 12px; }
+        h1 { font-size: 18px; text-align: center; margin-bottom: 4px; }
+        h2 { font-size: 13px; text-align: center; color: #555; margin-top: 0; }
+        .info { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 10px; padding: 8px 12px; background: #fafafa; border: 1px solid #ddd; border-radius: 6px; font-size: 11px; }
+        .jornada-table { width: auto; border-collapse: collapse; font-size: 10px; margin-bottom: 14px; }
+        .jornada-table th, .jornada-table td { border: 1px solid #ccc; padding: 3px 8px; text-align: left; }
+        .jornada-table th { background: #f0f0f0; }
+        table.main { width: 100%; border-collapse: collapse; }
+        table.main th, table.main td { border: 1px solid #333; padding: 6px 4px; text-align: center; }
+        table.main th { background: #e8e8e8; font-size: 10px; }
+        table.main td { height: 24px; font-size: 11px; }
+        .sig-col { width: 90px; }
+        .obs-col { width: 70px; }
+        @media print {
+          body { padding: 0; }
+          table.main { page-break-inside: auto; }
+          table.main tr { page-break-inside: avoid; }
+        }
+      </style></head><body>
+      <h1>Folha de Ponto</h1>
+      <h2>${monthNames[month]} / ${year}</h2>
+      <div class="info">
+        <div><strong>Nome:</strong> ${func.nome}</div>
+        <div><strong>CPF:</strong> ${func.cpf}</div>
+        <div><strong>Profissão:</strong> ${func.profissao || '-'}</div>
+        <div><strong>Tipo Folha:</strong> ${func.tipo_folha === 'atipica' ? 'Atípica' : 'Normal'}</div>
+        <div><strong>Carga Horária:</strong> ${func.carga_horaria_contrato || func.carga_horaria_semanal}h/semana</div>
+      </div>
+      <details open style="margin-bottom:10px;font-size:10px;">
+        <summary style="cursor:pointer;font-weight:bold;font-size:11px;">Jornada Padrão</summary>
+        <table class="jornada-table"><thead><tr><th>Dia</th><th>Entrada</th><th>S.Almoço</th><th>V.Almoço</th><th>Saída</th></tr></thead><tbody>${jornadaRows}</tbody></table>
+      </details>
+      <table class="main">
+        <thead>
+          <tr>
+            <th style="width:55px;">Data</th>
+            <th style="width:35px;">Dia</th>
+            <th style="width:50px;">Tipo</th>
+            <th style="width:55px;">Entrada</th>
+            <th style="width:55px;">S. Almoço</th>
+            <th style="width:55px;">V. Almoço</th>
+            <th style="width:55px;">Saída</th>
+            <th class="obs-col">Obs</th>
+            <th class="sig-col">Assinatura</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+      <div style="margin-top: 30px; text-align: center; font-size: 11px; page-break-inside: avoid;">
+        <div style="width: 280px; border-bottom: 1px solid #333; margin: 0 auto 8px auto;"></div>
+        Assinatura do Responsável<br/>
+      </div>
+      <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }<\/script>
+    </body></html>`;
+    printWindow.document.write(html);
+    printWindow.document.close();
+    setPrintFolhaFunc(null);
+  };
+
   const handleJornadaChange = (dia, field, value) => {
     const newJornada = { ...jornada };
     if (!newJornada[dia]) newJornada[dia] = { entrada: '', saida_almoco: '', volta_almoco: '', saida: '' };
@@ -248,6 +352,9 @@ export default function FolhaDePontoPage() {
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <div className="action-buttons">
+                        <button className="icon-btn" onClick={() => setPrintFolhaFunc(f)} title="Imprimir Folha de Ponto" style={{ color: 'var(--primary-light)' }}>
+                          <FiPrinter size={16} />
+                        </button>
                         <button className="icon-btn edit" onClick={() => handleOpenModal(f)} title="Editar">
                           <FiEdit2 size={16} />
                         </button>
@@ -397,6 +504,40 @@ export default function FolhaDePontoPage() {
                 <button type="submit" className="btn-primary">Salvar</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {printFolhaFunc && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <h2>Imprimir Folha de Ponto</h2>
+              <button className="close-btn" onClick={() => setPrintFolhaFunc(null)}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ padding: '10px', backgroundColor: 'var(--bg-secondary)', borderRadius: '8px' }}>
+                <strong>Funcionário:</strong> {printFolhaFunc.nome}
+              </div>
+              <div className="form-group">
+                <label className="form-label">Mês de Referência</label>
+                <input 
+                  type="month" 
+                  className="form-input" 
+                  value={printFolhaMes} 
+                  onChange={(e) => setPrintFolhaMes(e.target.value)} 
+                />
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                Será gerada uma folha em branco com todas as datas do mês selecionado para o funcionário preencher manualmente.
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={() => setPrintFolhaFunc(null)}>Cancelar</button>
+              <button className="btn-primary" onClick={() => handlePrintFolha(printFolhaFunc, printFolhaMes)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <FiPrinter size={14} /> Imprimir
+              </button>
+            </div>
           </div>
         </div>
       )}

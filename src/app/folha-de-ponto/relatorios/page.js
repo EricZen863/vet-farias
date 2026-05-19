@@ -109,8 +109,8 @@ export default function RelatoriosPontoPage() {
       weekTablesHTML += `<span style="color:${week.weekReal > 0 ? '#d32f2f' : '#333'};"><strong>HE Real:</strong> ${week.weekReal}h</span>`;
       weekTablesHTML += `</div>`;
       weekTablesHTML += `<div style="display:flex;gap:20px;color:#555;">`;
-      weekTablesHTML += `<span><strong>Feriados:</strong> ${week.feriados}</span>`;
-      weekTablesHTML += `<span><strong>Folgas:</strong> ${week.folgas}</span>`;
+      weekTablesHTML += `<span><strong>Feriados Trabalhados:</strong> ${week.feriados}</span>`;
+      weekTablesHTML += `<span><strong>Folgas Trabalhadas:</strong> ${week.folgas}</span>`;
       weekTablesHTML += `<span><strong>Faltas:</strong> ${week.faltas}</span>`;
       weekTablesHTML += `</div></div>`;
     });
@@ -121,8 +121,8 @@ export default function RelatoriosPontoPage() {
     if (isAtipica) monthTotalHTML += `&nbsp;&nbsp;|&nbsp;&nbsp;<span style="color:#1565c0;">Compensação: ${summary.totalCompensacao}h</span>`;
     monthTotalHTML += `&nbsp;&nbsp;|&nbsp;&nbsp;<span style="color:#d32f2f;font-weight:bold;">HE Reais: ${summary.totalExtrasReais}h</span></div>`;
     monthTotalHTML += `<div style="font-size:12px;color:#555;">`;
-    monthTotalHTML += `<strong>Feriados:</strong> ${summary.totalFeriados}&nbsp;&nbsp;|&nbsp;&nbsp;`;
-    monthTotalHTML += `<strong>Folgas:</strong> ${summary.totalFolgas}&nbsp;&nbsp;|&nbsp;&nbsp;`;
+    monthTotalHTML += `<strong>Feriados Trabalhados:</strong> ${summary.totalFeriados}&nbsp;&nbsp;|&nbsp;&nbsp;`;
+    monthTotalHTML += `<strong>Folgas Trabalhadas:</strong> ${summary.totalFolgas}&nbsp;&nbsp;|&nbsp;&nbsp;`;
     monthTotalHTML += `<strong>Faltas:</strong> ${summary.totalFaltas}`;
     monthTotalHTML += `</div></div>`;
 
@@ -261,8 +261,8 @@ export default function RelatoriosPontoPage() {
     }
     resumoHTML += `<p style="font-size:14px;"><strong>✅ Horas Extras Reais:</strong> <span style="color:#d32f2f;font-size:16px;font-weight:bold;">${summary.totalExtrasReais}h</span></p>`;
     resumoHTML += `<div style="display:flex;gap:20px;margin-top:10px;font-size:12px;color:#555;border-top:1px dashed #ccc;padding-top:10px;">`;
-    resumoHTML += `<span><strong>Feriados:</strong> ${summary.totalFeriados}</span>`;
-    resumoHTML += `<span><strong>Folgas:</strong> ${summary.totalFolgas}</span>`;
+    resumoHTML += `<span><strong>Feriados Trabalhados:</strong> ${summary.totalFeriados}</span>`;
+    resumoHTML += `<span><strong>Folgas Trabalhadas:</strong> ${summary.totalFolgas}</span>`;
     resumoHTML += `<span><strong>Faltas:</strong> ${summary.totalFaltas}</span>`;
     resumoHTML += `</div>`;
     return `
@@ -406,8 +406,8 @@ export default function RelatoriosPontoPage() {
                               </div>
                             </div>
                             <div style={{ display: 'flex', gap: '16px', fontSize: '11px', marginTop: '6px', color: 'var(--text-secondary)' }}>
-                              <span>Feriados: {week.feriados}</span>
-                              <span>Folgas: {week.folgas}</span>
+                              <span>Feriados Trabalhados: {week.feriados}</span>
+                              <span>Folgas Trabalhadas: {week.folgas}</span>
                               <span>Faltas: {week.faltas}</span>
                             </div>
                           </div>
@@ -462,8 +462,8 @@ export default function RelatoriosPontoPage() {
                           <span style={{ color: summary.totalExtrasReais > 0 ? '#d32f2f' : 'inherit' }}>HE Reais: {summary.totalExtrasReais}h</span>
                         </div>
                         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '8px', fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                          <span>Feriados: {summary.totalFeriados}</span>
-                          <span>Folgas: {summary.totalFolgas}</span>
+                          <span>Feriados Trabalhados: {summary.totalFeriados}</span>
+                          <span>Folgas Trabalhadas: {summary.totalFolgas}</span>
                           <span>Faltas: {summary.totalFaltas}</span>
                         </div>
                       </div>
@@ -493,7 +493,7 @@ export default function RelatoriosPontoPage() {
                   <label className="form-label">Tipo de Dia</label>
                   <select className="form-input" value={editingRecord.tipo_dia} onChange={e => setEditingRecord({...editingRecord, tipo_dia: e.target.value})}>
                     <option value="normal">Dia Normal</option>
-                    <option value="feriado">Feriado</option>
+                    <option value="feriado">Feriado Trabalhado</option>
                     <option value="folga">Folga Trabalhada</option>
                     <option value="falta">Falta</option>
                   </select>

@@ -4,6 +4,17 @@ import { FiArrowLeft, FiDownload, FiEdit2 } from 'react-icons/fi';
 import { useAuth } from '../../../components/AuthProvider';
 import Link from 'next/link';
 
+const fmtHoras = (decimal) => {
+  if (!decimal || decimal === 0) return '0h';
+  const totalMinutes = Math.round(Math.abs(decimal) * 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  const sign = decimal < 0 ? '-' : '';
+  if (minutes === 0) return `${sign}${hours}h`;
+  if (hours === 0) return `${sign}${minutes}min`;
+  return `${sign}${hours}h${String(minutes).padStart(2, '0')}min`;
+};
+
 export default function RelatoriosPontoPage() {
   const { userType } = useAuth();
   const [mesAtual, setMesAtual] = useState(new Date().toISOString().substring(0, 7)); // YYYY-MM
@@ -89,24 +100,24 @@ export default function RelatoriosPontoPage() {
         let classifCell = '';
         if (isAtipica) {
           if (he === 0) classifCell = '<td style="color:#999;">-</td>';
-          else if (r.is100) classifCell = `<td class="extra" style="font-weight:bold;">HE Real 100% (${r.dayReal}h)</td>`;
-          else if (isReal && r.dayComp > 0) classifCell = `<td><span class="extra">HE Real ${r.dayReal}h</span><br><span class="compensacao">Comp ${r.dayComp}h</span></td>`;
-          else if (isReal) classifCell = `<td class="extra">HE Real ${r.dayReal}h</td>`;
-          else classifCell = `<td class="compensacao">Comp ${r.dayComp}h</td>`;
+          else if (r.is100) classifCell = `<td class="extra" style="font-weight:bold;">HE Real 100% (${fmtHoras(r.dayReal)})</td>`;
+          else if (isReal && r.dayComp > 0) classifCell = `<td><span class="extra">HE Real ${fmtHoras(r.dayReal)}</span><br><span class="compensacao">Comp ${fmtHoras(r.dayComp)}</span></td>`;
+          else if (isReal) classifCell = `<td class="extra">HE Real ${fmtHoras(r.dayReal)}</td>`;
+          else classifCell = `<td class="compensacao">Comp ${fmtHoras(r.dayComp)}</td>`;
         }
         const diaSemPdf = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][parseDate(r.data).getDay()];
         const displayTipo = r.tipo_dia === 'folga' && (he > 0 || r.entrada) ? 'Folga Trabalhada' : 
                             r.tipo_dia === 'feriado' && (he > 0 || r.entrada) ? 'Feriado Trabalhado' : 
                             (r.tipo_dia || 'Normal');
-        weekTablesHTML += `<tr${rowStyle}><td>${parseDate(r.data).toLocaleDateString('pt-BR')}</td><td>${diaSemPdf}</td><td style="text-transform:capitalize;">${displayTipo}</td><td>${r.entrada ? r.entrada.substring(0,5) : '-'}</td><td>${r.saida_almoco ? r.saida_almoco.substring(0,5) : '-'}</td><td>${r.volta_almoco ? r.volta_almoco.substring(0,5) : '-'}</td><td>${r.saida ? r.saida.substring(0,5) : '-'}</td><td class="${isReal ? 'extra' : he > 0 ? 'compensacao' : ''}">${he}h</td>${classifCell}<td>${r.observacao || ''}</td></tr>`;
+        weekTablesHTML += `<tr${rowStyle}><td>${parseDate(r.data).toLocaleDateString('pt-BR')}</td><td>${diaSemPdf}</td><td style="text-transform:capitalize;">${displayTipo}</td><td>${r.entrada ? r.entrada.substring(0,5) : '-'}</td><td>${r.saida_almoco ? r.saida_almoco.substring(0,5) : '-'}</td><td>${r.volta_almoco ? r.volta_almoco.substring(0,5) : '-'}</td><td>${r.saida ? r.saida.substring(0,5) : '-'}</td><td class="${isReal ? 'extra' : he > 0 ? 'compensacao' : ''}">${fmtHoras(he)}</td>${classifCell}<td>${r.observacao || ''}</td></tr>`;
       });
       weekTablesHTML += `</tbody></table>`;
       // Week summary
       weekTablesHTML += `<div style="display:flex;flex-direction:column;gap:6px;font-size:11px;padding:8px;background:#f5f5f5;border-radius:4px;margin-top:4px;">`;
       weekTablesHTML += `<div style="display:flex;gap:20px;">`;
-      weekTablesHTML += `<span><strong>Exc:</strong> ${week.totalExtras}h</span>`;
-      if (isAtipica) weekTablesHTML += `<span style="color:#1565c0;"><strong>Comp:</strong> ${week.weekComp}h</span>`;
-      weekTablesHTML += `<span style="color:${week.weekReal > 0 ? '#d32f2f' : '#333'};"><strong>HE Real:</strong> ${week.weekReal}h</span>`;
+      weekTablesHTML += `<span><strong>Exc:</strong> ${fmtHoras(week.totalExtras)}</span>`;
+      if (isAtipica) weekTablesHTML += `<span style="color:#1565c0;"><strong>Comp:</strong> ${fmtHoras(week.weekComp)}</span>`;
+      weekTablesHTML += `<span style="color:${week.weekReal > 0 ? '#d32f2f' : '#333'};"><strong>HE Real:</strong> ${fmtHoras(week.weekReal)}</span>`;
       weekTablesHTML += `</div>`;
       weekTablesHTML += `<div style="display:flex;gap:20px;color:#555;">`;
       weekTablesHTML += `<span><strong>Feriados Trabalhados:</strong> ${week.feriados}</span>`;
@@ -117,9 +128,9 @@ export default function RelatoriosPontoPage() {
 
     // Monthly total
     let monthTotalHTML = `<div style="margin-top:16px;padding:10px;border:2px solid #333;border-radius:6px;font-size:13px;display:flex;flex-direction:column;gap:8px;">`;
-    monthTotalHTML += `<div><strong>📊 TOTAL MENSAL:</strong>&nbsp;&nbsp; Excedentes: ${summary.totalExtrasBruto}h`;
-    if (isAtipica) monthTotalHTML += `&nbsp;&nbsp;|&nbsp;&nbsp;<span style="color:#1565c0;">Compensação: ${summary.totalCompensacao}h</span>`;
-    monthTotalHTML += `&nbsp;&nbsp;|&nbsp;&nbsp;<span style="color:#d32f2f;font-weight:bold;">HE Reais: ${summary.totalExtrasReais}h</span></div>`;
+    monthTotalHTML += `<div><strong>📊 TOTAL MENSAL:</strong>&nbsp;&nbsp; Excedentes: ${fmtHoras(summary.totalExtrasBruto)}`;
+    if (isAtipica) monthTotalHTML += `&nbsp;&nbsp;|&nbsp;&nbsp;<span style="color:#1565c0;">Compensação: ${fmtHoras(summary.totalCompensacao)}</span>`;
+    monthTotalHTML += `&nbsp;&nbsp;|&nbsp;&nbsp;<span style="color:#d32f2f;font-weight:bold;">HE Reais: ${fmtHoras(summary.totalExtrasReais)}</span></div>`;
     monthTotalHTML += `<div style="font-size:12px;color:#555;">`;
     monthTotalHTML += `<strong>Feriados Trabalhados:</strong> ${summary.totalFeriados}&nbsp;&nbsp;|&nbsp;&nbsp;`;
     monthTotalHTML += `<strong>Folgas Trabalhadas:</strong> ${summary.totalFolgas}&nbsp;&nbsp;|&nbsp;&nbsp;`;
@@ -254,12 +265,12 @@ export default function RelatoriosPontoPage() {
       const j = jornada[dia];
       jornadaRows += j ? `<tr><td>${diaLabels[dia]}</td><td>${j.entrada||'-'}</td><td>${j.saida_almoco||'-'}</td><td>${j.volta_almoco||'-'}</td><td>${j.saida||'-'}</td></tr>` : `<tr><td>${diaLabels[dia]}</td><td colspan="4" style="text-align:center;color:#999;">Folga</td></tr>`;
     });
-    let resumoHTML = `<p><strong>Total Horas Excedentes (bruto):</strong> ${summary.totalExtrasBruto}h</p>`;
+    let resumoHTML = `<p><strong>Total Horas Excedentes (bruto):</strong> ${fmtHoras(summary.totalExtrasBruto)}</p>`;
     if (emp.tipo_folha === 'atipica') {
       resumoHTML += `<p><strong>Débito Semanal:</strong> ${summary.debitoSemanal}h (44h - ${emp.carga_horaria_contrato}h contrato)</p>`;
-      resumoHTML += `<p><strong>Compensação de Débito:</strong> ${summary.totalCompensacao}h</p>`;
+      resumoHTML += `<p><strong>Compensação de Débito:</strong> ${fmtHoras(summary.totalCompensacao)}</p>`;
     }
-    resumoHTML += `<p style="font-size:14px;"><strong>✅ Horas Extras Reais:</strong> <span style="color:#d32f2f;font-size:16px;font-weight:bold;">${summary.totalExtrasReais}h</span></p>`;
+    resumoHTML += `<p style="font-size:14px;"><strong>✅ Horas Extras Reais:</strong> <span style="color:#d32f2f;font-size:16px;font-weight:bold;">${fmtHoras(summary.totalExtrasReais)}</span></p>`;
     resumoHTML += `<div style="display:flex;gap:20px;margin-top:10px;font-size:12px;color:#555;border-top:1px dashed #ccc;padding-top:10px;">`;
     resumoHTML += `<span><strong>Feriados Trabalhados:</strong> ${summary.totalFeriados}</span>`;
     resumoHTML += `<span><strong>Folgas Trabalhadas:</strong> ${summary.totalFolgas}</span>`;
@@ -333,9 +344,9 @@ export default function RelatoriosPontoPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px' }}>
                   <span>Registros: <strong>{emp.records.length}</strong></span>
                   <span style={{ color: totalExtras > 0 ? 'var(--primary-light)' : 'inherit' }}>
-                    Extras: <strong>{totalExtras}h</strong>
+                    Extras: <strong>{fmtHoras(totalExtras)}</strong>
                     {emp.tipo_folha === 'atipica' && totalExtrasRaw !== totalExtras && (
-                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginLeft: '4px' }}>(bruto: {totalExtrasRaw}h)</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginLeft: '4px' }}>(bruto: {fmtHoras(totalExtrasRaw)})</span>
                     )}
                   </span>
                 </div>
@@ -400,9 +411,9 @@ export default function RelatoriosPontoPage() {
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                               <span>Semana {week.weekNum} ({fmtDate(week.start)} - {fmtDate(week.end)})</span>
                               <div style={{ display: 'flex', gap: '12px', fontSize: '11px' }}>
-                                <span>Exc: {week.totalExtras}h</span>
-                                {isAtip && <span style={{ color: '#1565c0' }}>Comp: {week.weekComp}h</span>}
-                                <span style={{ color: week.weekReal > 0 ? '#d32f2f' : 'inherit', fontWeight: week.weekReal > 0 ? 700 : 400 }}>HE Real: {week.weekReal}h</span>
+                                <span>Exc: {fmtHoras(week.totalExtras)}</span>
+                                {isAtip && <span style={{ color: '#1565c0' }}>Comp: {fmtHoras(week.weekComp)}</span>}
+                                <span style={{ color: week.weekReal > 0 ? '#d32f2f' : 'inherit', fontWeight: week.weekReal > 0 ? 700 : 400 }}>HE Real: {fmtHoras(week.weekReal)}</span>
                               </div>
                             </div>
                             <div style={{ display: 'flex', gap: '16px', fontSize: '11px', marginTop: '6px', color: 'var(--text-secondary)' }}>
@@ -434,10 +445,10 @@ export default function RelatoriosPontoPage() {
                                       <td>{r.saida_almoco ? r.saida_almoco.substring(0,5) : '-'}</td>
                                       <td>{r.volta_almoco ? r.volta_almoco.substring(0,5) : '-'}</td>
                                       <td>{r.saida ? r.saida.substring(0,5) : '-'}</td>
-                                      <td><strong style={{ color: isReal ? '#d32f2f' : he > 0 ? '#1565c0' : 'inherit' }}>{he}h</strong></td>
+                                      <td><strong style={{ color: isReal ? '#d32f2f' : he > 0 ? '#1565c0' : 'inherit' }}>{fmtHoras(he)}</strong></td>
                                       {isAtip && <td style={{ fontSize: '10px', fontWeight: 600, color: isReal ? '#d32f2f' : he > 0 ? '#1565c0' : '#999' }}>
-                                        {he === 0 ? '-' : r.is100 ? `HE Real 100% (${r.dayReal}h)` : isReal ? `HE Real ${r.dayReal}h` : `Comp ${r.dayComp}h`}
-                                        {r.dayReal > 0 && r.dayComp > 0 && !r.is100 && <><br/><span style={{ color: '#1565c0' }}>Comp {r.dayComp}h</span></>}
+                                        {he === 0 ? '-' : r.is100 ? `HE Real 100% (${fmtHoras(r.dayReal)})` : isReal ? `HE Real ${fmtHoras(r.dayReal)}` : `Comp ${fmtHoras(r.dayComp)}`}
+                                        {r.dayReal > 0 && r.dayComp > 0 && !r.is100 && <><br/><span style={{ color: '#1565c0' }}>Comp {fmtHoras(r.dayComp)}</span></>}
                                       </td>}
                                       <td style={{ maxWidth: '60px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={r.observacao}>{r.observacao}</td>
                                       <td>
@@ -457,9 +468,9 @@ export default function RelatoriosPontoPage() {
                       <div style={{ padding: '10px 12px', background: 'var(--bg-secondary)', borderRadius: '6px', fontWeight: 600, marginTop: '4px', fontSize: '13px' }}>
                         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
                           <span>📊 Total Mensal:</span>
-                          <span>Excedentes: {summary.totalExtrasBruto}h</span>
-                          {isAtip && <span style={{ color: '#1565c0' }}>Compensação: {summary.totalCompensacao}h</span>}
-                          <span style={{ color: summary.totalExtrasReais > 0 ? '#d32f2f' : 'inherit' }}>HE Reais: {summary.totalExtrasReais}h</span>
+                          <span>Excedentes: {fmtHoras(summary.totalExtrasBruto)}</span>
+                          {isAtip && <span style={{ color: '#1565c0' }}>Compensação: {fmtHoras(summary.totalCompensacao)}</span>}
+                          <span style={{ color: summary.totalExtrasReais > 0 ? '#d32f2f' : 'inherit' }}>HE Reais: {fmtHoras(summary.totalExtrasReais)}</span>
                         </div>
                         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '8px', fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>
                           <span>Feriados Trabalhados: {summary.totalFeriados}</span>

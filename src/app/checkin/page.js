@@ -8,6 +8,8 @@ export default function CheckinPage() {
   const [registro, setRegistro] = useState(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [activeCampo, setActiveCampo] = useState(null);
   const [time, setTime] = useState(new Date());
 
   const [tipoDia, setTipoDia] = useState('normal');
@@ -26,7 +28,8 @@ export default function CheckinPage() {
   const loadTodayRecord = async () => {
     try {
       setLoading(true);
-      const hoje = new Date().toISOString().split('T')[0];
+      const now = new Date();
+      const hoje = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
       const res = await fetch(`/api/ponto?funcionarioId=${user.id}&data=${hoje}`);
       const data = await res.json();
       if (data && !data.error) {
@@ -42,9 +45,13 @@ export default function CheckinPage() {
   };
 
   const handlePunch = async (campo) => {
+    if (submitting) return;
     try {
-      setMessage('Registrando...');
-      const hoje = new Date().toISOString().split('T')[0];
+      setSubmitting(true);
+      setActiveCampo(campo);
+      setMessage('');
+      const now = new Date();
+      const hoje = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
       const agora = new Date().toLocaleTimeString('pt-BR', { hour12: false, hour: '2-digit', minute: '2-digit' });
 
       // If no record exists, initiate the day first
@@ -72,6 +79,9 @@ export default function CheckinPage() {
       }
     } catch (err) {
       setMessage('Erro de conexão');
+    } finally {
+      setSubmitting(false);
+      setActiveCampo(null);
     }
   };
 
@@ -123,27 +133,35 @@ export default function CheckinPage() {
 
             <PunchButton 
               label="1. Entrada" 
+              campo="entrada"
               time={registro?.entrada} 
               onClick={() => handlePunch('entrada')} 
-              disabled={!!registro?.entrada} 
+              disabled={submitting || !!registro?.entrada} 
+              isSubmitting={submitting && activeCampo === 'entrada'}
             />
             <PunchButton 
               label="2. Saída para Almoço" 
+              campo="saida_almoco"
               time={registro?.saida_almoco} 
               onClick={() => handlePunch('saida_almoco')} 
-              disabled={!registro?.entrada || !!registro?.saida_almoco} 
+              disabled={submitting || !registro?.entrada || !!registro?.saida_almoco} 
+              isSubmitting={submitting && activeCampo === 'saida_almoco'}
             />
             <PunchButton 
               label="3. Volta do Almoço" 
+              campo="volta_almoco"
               time={registro?.volta_almoco} 
               onClick={() => handlePunch('volta_almoco')} 
-              disabled={!registro?.saida_almoco || !!registro?.volta_almoco} 
+              disabled={submitting || !registro?.saida_almoco || !!registro?.volta_almoco} 
+              isSubmitting={submitting && activeCampo === 'volta_almoco'}
             />
             <PunchButton 
               label="4. Saída" 
+              campo="saida"
               time={registro?.saida} 
               onClick={() => handlePunch('saida')} 
-              disabled={!registro?.entrada || !!registro?.saida} 
+              disabled={submitting || !registro?.entrada || !!registro?.saida} 
+              isSubmitting={submitting && activeCampo === 'saida'}
             />
           </div>
         )}
@@ -158,7 +176,7 @@ export default function CheckinPage() {
   );
 }
 
-function PunchButton({ label, time, onClick, disabled }) {
+function PunchButton({ label, time, onClick, disabled, isSubmitting }) {
   const isDone = !!time;
   return (
     <button 
@@ -171,14 +189,20 @@ function PunchButton({ label, time, onClick, disabled }) {
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center',
-        opacity: disabled && !isDone ? 0.5 : 1,
-        backgroundColor: isDone ? 'var(--bg-secondary)' : 'var(--primary)',
-        color: isDone ? 'var(--text-primary)' : '#fff',
-        border: isDone ? '1px solid var(--border)' : 'none'
+        opacity: disabled && !isDone && !isSubmitting ? 0.5 : 1,
+        backgroundColor: isSubmitting ? '#f59e0b' : isDone ? 'var(--bg-secondary)' : 'var(--primary)',
+        color: isSubmitting ? '#fff' : isDone ? 'var(--text-primary)' : '#fff',
+        border: isDone ? '1px solid var(--border)' : 'none',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        transition: 'background-color 0.3s ease'
       }}
     >
       <span>{label}</span>
-      {isDone ? (
+      {isSubmitting ? (
+        <span style={{ display: 'flex', alignItems: 'center', gap: '8px', animation: 'pulse 1.5s infinite' }}>
+          ⏳ Registrando...
+        </span>
+      ) : isDone ? (
         <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {time.substring(0, 5)} <FiCheckCircle color="green" />
         </span>

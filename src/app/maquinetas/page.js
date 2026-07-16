@@ -27,7 +27,7 @@ export default function MaquinetasPage() {
       }).catch(() => {});
   }, [isAuthenticated, monthKey]);
 
-  const getForm = (id) => forms[id] || { data: '', nota: 'N/A', valor: '' };
+  const getForm = (id) => forms[id] || { data: '', nota: 'N/A', valor: '', valor_produto: '' };
   const setForm = (id, field, value) => {
     setForms(prev => ({ ...prev, [id]: { ...getForm(id), [field]: value } }));
   };
@@ -67,11 +67,17 @@ export default function MaquinetasPage() {
     const form = getForm(machineId);
     if (!form.data || !form.valor) return;
     try {
-      const res = await fetch('/api/maquinetas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'addRecord', machineId, month: monthKey, data: form.data, nota: form.nota, valor: parseFloat(form.valor) }) });
+      const res = await fetch('/api/maquinetas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'addRecord', machineId, month: monthKey, data: form.data, nota: form.nota, valor: parseFloat(form.valor), valor_produto: parseFloat(form.valor_produto) || 0 }) });
       const newRecord = await res.json();
       setRecords(prev => ({ ...prev, [machineId]: [...(prev[machineId] || []), newRecord] }));
-      setForms(prev => ({ ...prev, [machineId]: { data: '', nota: 'N/A', valor: '' } }));
+      setForms(prev => ({ ...prev, [machineId]: { data: '', nota: 'N/A', valor: '', valor_produto: '' } }));
     } catch {}
+  };
+
+  const updateValorProduto = async (machineId, recordId, valor_produto) => {
+    const vp = parseFloat(valor_produto) || 0;
+    await fetch('/api/maquinetas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'updateValorProduto', id: recordId, valor_produto: vp }) });
+    setRecords(prev => ({ ...prev, [machineId]: (prev[machineId] || []).map(r => r.id === recordId ? { ...r, valor_produto: vp } : r) }));
   };
 
   const deleteRecord = async (machineId, recordId) => {
@@ -120,6 +126,8 @@ export default function MaquinetasPage() {
         {machines.map((m, index) => {
           const mRecords = records[m.id] || [];
           const total = mRecords.reduce((sum, r) => sum + r.valor, 0);
+          const totalProdutos = mRecords.reduce((sum, r) => sum + (r.valor_produto || 0), 0);
+          const totalServicos = total - totalProdutos;
           const maximo = m.maximo || 0;
           const percent = maximo > 0 ? Math.min((total / maximo) * 100, 100) : 0;
           const isNearLimit = maximo > 0 && percent >= 80;
@@ -170,12 +178,13 @@ export default function MaquinetasPage() {
 
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
                   <input type="date" className="form-input" value={form.data} onChange={(e) => setForm(m.id, 'data', e.target.value)} style={{ flex: 1, minWidth: '120px', padding: '8px 10px', fontSize: '13px' }} />
-                  <select className="form-input" value={form.nota} onChange={(e) => setForm(m.id, 'nota', e.target.value)} style={{ width: '100px', padding: '8px 10px', fontSize: '13px' }}>
+                  <select className="form-input" value={form.nota} onChange={(e) => setForm(m.id, 'nota', e.target.value)} style={{ width: '80px', padding: '8px 10px', fontSize: '13px' }}>
                     <option>N/A</option>
                     <option>OK</option>
                     <option>Falta</option>
                   </select>
-                  <input type="number" className="form-input" value={form.valor} onChange={(e) => setForm(m.id, 'valor', e.target.value)} placeholder="R$" step="0.01" style={{ width: '100px', padding: '8px 10px', fontSize: '13px' }} />
+                  <input type="number" className="form-input" value={form.valor} onChange={(e) => setForm(m.id, 'valor', e.target.value)} placeholder="R$" step="0.01" style={{ width: '90px', padding: '8px 10px', fontSize: '13px' }} title="Valor total do dia" />
+                  <input type="number" className="form-input" value={form.valor_produto} onChange={(e) => setForm(m.id, 'valor_produto', e.target.value)} placeholder="Prod. R$" step="0.01" style={{ width: '90px', padding: '8px 10px', fontSize: '13px' }} title="Valor de produtos" />
                   <button className="btn-primary" onClick={() => addRecord(m.id)} style={{ padding: '8px 16px', fontSize: '13px' }}>+</button>
                 </div>
 
@@ -184,8 +193,10 @@ export default function MaquinetasPage() {
                 ) : (
                   <div className="table-wrapper" style={{ marginTop: 0, maxHeight: '200px', overflowY: 'auto' }}>
                     <table>
-                      <thead><tr><th>Data</th><th>Nota</th><th>Valor</th><th></th></tr></thead>
-                      <tbody>{mRecords.map((r) => (
+                      <thead><tr><th>Data</th><th>Nota</th><th>Total Dia</th><th>Prod.</th><th>Serviço</th><th></th></tr></thead>
+                      <tbody>{mRecords.map((r) => {
+                        const servico = r.valor - (r.valor_produto || 0);
+                        return (
                         <tr key={r.id}>
                           <td style={{ fontSize: '12px' }}>{formatDate(r.data)}</td>
                           <td style={{ fontSize: '12px', padding: '4px' }}>
@@ -200,9 +211,19 @@ export default function MaquinetasPage() {
                             </select>
                           </td>
                           <td style={{ fontSize: '12px' }}>{formatCurrency(r.valor)}</td>
+                          <td style={{ fontSize: '12px', padding: '4px' }}>
+                            <input
+                              type="number" step="0.01"
+                              value={r.valor_produto || 0}
+                              onChange={(e) => updateValorProduto(m.id, r.id, e.target.value)}
+                              style={{ background: 'var(--bg-input)', color: '#f59e0b', border: '1px solid var(--border)', borderRadius: '4px', padding: '3px 6px', fontSize: '12px', width: '80px', fontFamily: 'inherit' }}
+                            />
+                          </td>
+                          <td style={{ fontSize: '12px', color: '#4ade80', fontWeight: 600 }}>{formatCurrency(servico)}</td>
                           <td><button className="delete-btn" onClick={() => deleteRecord(m.id, r.id)}><FiTrash2 size={12} /></button></td>
                         </tr>
-                      ))}</tbody>
+                        );
+                      })}</tbody>
                     </table>
                   </div>
                 )}
@@ -218,9 +239,19 @@ export default function MaquinetasPage() {
               </div>
 
               <div className="maquineta-footer">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total</span>
-                  <span style={{ fontSize: '22px', fontWeight: 700, color: 'var(--primary-light)' }}>{formatCurrency(total)}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total</span>
+                    <span style={{ fontSize: '22px', fontWeight: 700, color: 'var(--primary-light)' }}>{formatCurrency(total)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Produtos</span>
+                    <span style={{ fontSize: '15px', fontWeight: 600, color: '#f59e0b' }}>{formatCurrency(totalProdutos)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Serviços</span>
+                    <span style={{ fontSize: '15px', fontWeight: 600, color: '#4ade80' }}>{formatCurrency(totalServicos)}</span>
+                  </div>
                 </div>
               </div>
             </div>

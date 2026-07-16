@@ -122,9 +122,15 @@ export async function initDB() {
       month_key VARCHAR(7) NOT NULL,
       data VARCHAR(20),
       nota VARCHAR(10) DEFAULT 'N/A',
-      valor DECIMAL(10,2) DEFAULT 0
+      valor DECIMAL(10,2) DEFAULT 0,
+      valor_produto DECIMAL(10,2) DEFAULT 0
     )
   `;
+
+  // Add valor_produto column if missing (existing DBs)
+  try {
+    await db`ALTER TABLE maquinetas_records ADD COLUMN IF NOT EXISTS valor_produto DECIMAL(10,2) DEFAULT 0`;
+  } catch (e) { /* column already exists */ }
 
   await db`
     CREATE TABLE IF NOT EXISTS maquinetas_obs (

@@ -15,7 +15,7 @@ export async function GET(request) {
   for (const m of machines) {
     const recs = await sql`SELECT * FROM maquinetas_records WHERE maquineta_id = ${m.id} AND month_key = ${month} ORDER BY id`;
     allRecords[m.id] = recs.map(r => ({
-      id: r.id, data: r.data, nota: r.nota, valor: parseFloat(r.valor)
+      id: r.id, data: r.data, nota: r.nota, valor: parseFloat(r.valor), valor_produto: parseFloat(r.valor_produto) || 0
     }));
     const obs = await sql`SELECT texto FROM maquinetas_obs WHERE maquineta_id = ${m.id} AND month_key = ${month}`;
     allObs[m.id] = obs.length > 0 ? obs[0].texto : '';
@@ -58,13 +58,14 @@ export async function POST(request) {
   }
 
   if (action === 'addRecord') {
+    const valorProduto = body.valor_produto || 0;
     const rows = await sql`
-      INSERT INTO maquinetas_records (maquineta_id, month_key, data, nota, valor)
-      VALUES (${body.machineId}, ${body.month}, ${body.data}, ${body.nota}, ${body.valor})
+      INSERT INTO maquinetas_records (maquineta_id, month_key, data, nota, valor, valor_produto)
+      VALUES (${body.machineId}, ${body.month}, ${body.data}, ${body.nota}, ${body.valor}, ${valorProduto})
       RETURNING *
     `;
     const r = rows[0];
-    return NextResponse.json({ id: r.id, data: r.data, nota: r.nota, valor: parseFloat(r.valor) });
+    return NextResponse.json({ id: r.id, data: r.data, nota: r.nota, valor: parseFloat(r.valor), valor_produto: parseFloat(r.valor_produto) || 0 });
   }
 
   if (action === 'deleteRecord') {
@@ -74,6 +75,11 @@ export async function POST(request) {
 
   if (action === 'updateNota') {
     await sql`UPDATE maquinetas_records SET nota = ${body.nota} WHERE id = ${body.id}`;
+    return NextResponse.json({ success: true });
+  }
+
+  if (action === 'updateValorProduto') {
+    await sql`UPDATE maquinetas_records SET valor_produto = ${body.valor_produto} WHERE id = ${body.id}`;
     return NextResponse.json({ success: true });
   }
 

@@ -191,7 +191,7 @@ export default function MaquinetasPage() {
                 {mRecords.length === 0 ? (
                   <div className="no-data" style={{ padding: '20px', fontSize: '13px' }}>Nenhum recebimento</div>
                 ) : (
-                  <div className="table-wrapper" style={{ marginTop: 0, maxHeight: '200px', overflowY: 'auto' }}>
+                  <div className="table-wrapper" style={{ marginTop: 0, minHeight: '80px', maxHeight: 'none', height: '200px', overflowY: 'auto', resize: 'vertical', paddingBottom: '8px', borderBottom: '3px solid var(--border)', cursor: 'ns-resize' }}>
                     <table>
                       <thead><tr><th>Data</th><th>Nota</th><th>Total Dia</th><th>Prod.</th><th>Serviço</th><th></th></tr></thead>
                       <tbody>{mRecords.map((r) => {

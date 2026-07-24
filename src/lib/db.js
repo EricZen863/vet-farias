@@ -199,7 +199,173 @@ export async function initFolhaDePonto() {
     )
   `;
 
+  await initKanbanAndRemindersDB(db);
+
   folhaInitialized = true;
+}
+
+async function initKanbanAndRemindersDB(db) {
+  await db`
+    CREATE TABLE IF NOT EXISTS kanban_boards (
+      id SERIAL PRIMARY KEY,
+      nome VARCHAR(100) NOT NULL,
+      cor VARCHAR(20) DEFAULT '#8c69ac',
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `;
+
+  await db`
+    CREATE TABLE IF NOT EXISTS kanban_columns (
+      id SERIAL PRIMARY KEY,
+      board_id INTEGER REFERENCES kanban_boards(id) ON DELETE CASCADE,
+      nome VARCHAR(100) NOT NULL,
+      ordem INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `;
+
+  await db`
+    CREATE TABLE IF NOT EXISTS kanban_cards (
+      id SERIAL PRIMARY KEY,
+      column_id INTEGER REFERENCES kanban_columns(id) ON DELETE CASCADE,
+      titulo VARCHAR(250) NOT NULL,
+      descricao TEXT,
+      prioridade VARCHAR(20) DEFAULT 'media',
+      dues_at TIMESTAMP,
+      lembrete_enviado BOOLEAN DEFAULT false,
+      etiquetas JSONB DEFAULT '[]',
+      ordem INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `;
+
+  await db`
+    CREATE TABLE IF NOT EXISTS reminders_recurring (
+      id SERIAL PRIMARY KEY,
+      titulo VARCHAR(250) NOT NULL,
+      descricao TEXT,
+      horario VARCHAR(5) NOT NULL,
+      dias_semana JSONB DEFAULT '[0,1,2,3,4,5,6]',
+      board_id INTEGER REFERENCES kanban_boards(id) ON DELETE CASCADE,
+      column_id INTEGER REFERENCES kanban_columns(id) ON DELETE CASCADE,
+      ativo BOOLEAN DEFAULT true,
+      ultimo_disparo DATE,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `;
+
+  await db`
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id SERIAL PRIMARY KEY,
+      endpoint TEXT UNIQUE NOT NULL,
+      keys JSONB NOT NULL,
+      user_agent TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `;
+
+  // Seed default boards if empty
+  const boardsCount = await db`SELECT count(*) as count FROM kanban_boards`;
+  if (parseInt(boardsCount[0].count) === 0) {
+    const defaultBoards = ['Recepção', 'Clínica', 'Cirurgias', 'Geral'];
+    for (const bNome of defaultBoards) {
+      const res = await db`INSERT INTO kanban_boards (nome, cor) VALUES (${bNome}, '#8c69ac') RETURNING id`;
+      const bId = res[0].id;
+      await db`INSERT INTO kanban_columns (board_id, nome, ordem) VALUES (${bId}, 'A Fazer', 1)`;
+      await db`INSERT INTO kanban_columns (board_id, nome, ordem) VALUES (${bId}, 'Em Andamento', 2)`;
+      await db`INSERT INTO kanban_columns (board_id, nome, ordem) VALUES (${bId}, 'Concluído', 3)`;
+    }
+  }
+}
+
+export async function getKanbanBoards() {
+  const db = getSQL();
+  if (!db) return [];
+  const boards = await db`SELECT * FROM kanban_boards ORDER BY id ASC`;
+  const columns = await db`SELECT * FROM kanban_columns ORDER BY ordem ASC`;
+  const cards = await db`SELECT * FROM kanban_cards ORDER BY ordem ASC, id DESC`;
+
+  return boards.map(board => ({
+    ...board,
+    columns: columns
+      .filter(col => col.board_id === board.id)
+      .map(col => ({
+        ...col,
+        cards: cards.filter(card => card.column_id === col.id)
+      }))
+  }));
+}
+
+export async function createKanbanCard({ column_id, titulo, descricao, prioridade, dues_at, etiquetas }) {
+  const db = getSQL();
+  if (!db) return null;
+  const res = await db`
+    INSERT INTO kanban_cards (column_id, titulo, descricao, prioridade, dues_at, etiquetas)
+    VALUES (${column_id}, ${titulo}, ${descricao || ''}, ${prioridade || 'media'}, ${dues_at || null}, ${JSON.stringify(etiquetas || [])})
+    RETURNING *
+  `;
+  return res[0];
+}
+
+export async function moveKanbanCard(card_id, new_column_id) {
+  const db = getSQL();
+  if (!db) return null;
+  const res = await db`
+    UPDATE kanban_cards
+    SET column_id = ${new_column_id}
+    WHERE id = ${card_id}
+    RETURNING *
+  `;
+  return res[0];
+}
+
+export async function deleteKanbanCard(card_id) {
+  const db = getSQL();
+  if (!db) return false;
+  await db`DELETE FROM kanban_cards WHERE id = ${card_id}`;
+  return true;
+}
+
+export async function getRemindersRecurring() {
+  const db = getSQL();
+  if (!db) return [];
+  return await db`SELECT * FROM reminders_recurring ORDER BY horario ASC`;
+}
+
+export async function createReminderRecurring({ titulo, descricao, horario, dias_semana, board_id, column_id }) {
+  const db = getSQL();
+  if (!db) return null;
+  const res = await db`
+    INSERT INTO reminders_recurring (titulo, descricao, horario, dias_semana, board_id, column_id)
+    VALUES (${titulo}, ${descricao || ''}, ${horario}, ${JSON.stringify(dias_semana || [0,1,2,3,4,5,6])}, ${board_id}, ${column_id})
+    RETURNING *
+  `;
+  return res[0];
+}
+
+export async function deleteReminderRecurring(id) {
+  const db = getSQL();
+  if (!db) return false;
+  await db`DELETE FROM reminders_recurring WHERE id = ${id}`;
+  return true;
+}
+
+export async function savePushSubscription({ endpoint, keys, user_agent }) {
+  const db = getSQL();
+  if (!db) return null;
+  const res = await db`
+    INSERT INTO push_subscriptions (endpoint, keys, user_agent)
+    VALUES (${endpoint}, ${JSON.stringify(keys)}, ${user_agent || ''})
+    ON CONFLICT (endpoint) DO UPDATE SET keys = ${JSON.stringify(keys)}
+    RETURNING *
+  `;
+  return res[0];
+}
+
+export async function getPushSubscriptions() {
+  const db = getSQL();
+  if (!db) return [];
+  return await db`SELECT * FROM push_subscriptions`;
 }
 
 export async function query(queryStr, params = []) {
@@ -209,4 +375,5 @@ export async function query(queryStr, params = []) {
 }
 
 export { getSQL };
+
 

@@ -30,7 +30,7 @@ export async function POST(request) {
     return NextResponse.json(item, { status: 201 });
   } catch (error) {
     console.error('Error creating recurring reminder:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
 }
 

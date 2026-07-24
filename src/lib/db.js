@@ -348,9 +348,25 @@ export async function getRemindersRecurring() {
 export async function createReminderRecurring({ titulo, descricao, horario, prioridade, dias_semana, board_id, column_id }) {
   const db = getSQL();
   if (!db) return null;
+
+  let targetBoardId = board_id;
+  let targetColumnId = column_id;
+
+  // Se nao forem fornecidos, buscar o primeiro quadro e coluna disponiveis
+  if (!targetBoardId || !targetColumnId) {
+    const boards = await db`SELECT id FROM kanban_boards ORDER BY id ASC LIMIT 1`;
+    if (boards.length > 0) {
+      targetBoardId = boards[0].id;
+      const cols = await db`SELECT id FROM kanban_columns WHERE board_id = ${targetBoardId} ORDER BY ordem ASC LIMIT 1`;
+      if (cols.length > 0) {
+        targetColumnId = cols[0].id;
+      }
+    }
+  }
+
   const res = await db`
     INSERT INTO reminders_recurring (titulo, descricao, horario, prioridade, dias_semana, board_id, column_id)
-    VALUES (${titulo}, ${descricao || ''}, ${horario}, ${prioridade || 'media'}, ${JSON.stringify(dias_semana || [0,1,2,3,4,5,6])}, ${board_id || null}, ${column_id || null})
+    VALUES (${titulo}, ${descricao || ''}, ${horario}, ${prioridade || 'media'}, ${JSON.stringify(dias_semana || [0,1,2,3,4,5,6])}, ${targetBoardId || null}, ${targetColumnId || null})
     RETURNING *
   `;
   return res[0];

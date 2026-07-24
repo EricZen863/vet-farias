@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getRemindersRecurring, createReminderRecurring, deleteReminderRecurring, isDBAvailable } from '@/lib/db';
+import { getRemindersRecurring, createReminderRecurring, deleteReminderRecurring, isDBAvailable, getSQL } from '@/lib/db';
 
 export async function GET() {
   try {
@@ -19,6 +19,11 @@ export async function POST(request) {
     if (!isDBAvailable()) {
       return NextResponse.json({ message: 'DB not available' }, { status: 503 });
     }
+
+    const db = getSQL();
+    // Garantir que a coluna prioridade exista na tabela no Neon DB
+    await db`ALTER TABLE reminders_recurring ADD COLUMN IF NOT EXISTS prioridade VARCHAR(20) DEFAULT 'media'`;
+
     const body = await request.json();
     const { titulo, descricao, horario, prioridade, dias_semana, board_id, column_id } = body;
 

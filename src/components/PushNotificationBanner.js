@@ -26,24 +26,20 @@ export default function PushNotificationBanner() {
       return;
     }
 
-    // Registrar Service Worker
     navigator.serviceWorker.register('/sw.js').catch(err => {
       console.error('Service Worker registration failed:', err);
     });
 
-    // Checar permissão atual
     if (Notification.permission === 'default') {
       setShowBanner(true);
     } else if (Notification.permission === 'granted') {
       setSubscribed(true);
     }
 
-    // Timer silencioso de verificação de lembretes a cada 60s
     const interval = setInterval(() => {
       fetch('/api/push/check-reminders').catch(() => {});
     }, 60000);
 
-    // Executar 1x na inicialização
     fetch('/api/push/check-reminders').catch(() => {});
 
     return () => clearInterval(interval);
@@ -86,33 +82,35 @@ export default function PushNotificationBanner() {
   return (
     <div style={{
       backgroundColor: 'var(--primary-bg)',
-      borderBottom: '1px solid var(--primary)',
-      padding: '12px 24px',
+      border: '1px solid var(--primary)',
+      borderRadius: 'var(--radius)',
+      padding: '12px 20px',
+      marginBottom: '20px',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      position: 'relative',
-      zIndex: 99
+      flexWrap: 'wrap',
+      gap: '12px'
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <FiBell style={{ fontSize: '20px', color: 'var(--primary-light)' }} />
-        <span style={{ fontSize: '14px', color: 'var(--text)' }}>
-          Ative as <strong>Notificações Push</strong> para receber lembretes de tarefas e reuniões diretamente no Windows e Celular.
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: '260px' }}>
+        <FiBell style={{ fontSize: '20px', color: 'var(--primary-light)', flexShrink: 0 }} />
+        <span style={{ fontSize: '13px', color: 'var(--text)', lineHeight: '1.4' }}>
+          Ative as <strong>Notificações Push</strong> para receber lembretes de tarefas e reuniões no Windows e Celular.
         </span>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         <button
           onClick={handleSubscribe}
           disabled={loading}
           className="btn-primary"
-          style={{ padding: '8px 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
+          style={{ padding: '8px 14px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
         >
           <FiCheck /> {loading ? 'Ativando...' : 'Ativar Notificações'}
         </button>
         <button
           onClick={() => setShowBanner(false)}
-          style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '18px' }}
+          style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '18px', padding: '4px' }}
         >
           <FiX />
         </button>

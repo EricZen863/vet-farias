@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
-import { getKanbanBoards, isDBAvailable } from '@/lib/db';
+import { getKanbanBoards, initDB, isDBAvailable } from '@/lib/db';
 
 export async function GET() {
   try {
     if (!isDBAvailable()) {
       return NextResponse.json([]);
     }
+
+    // Garantir que tabelas e quadros padrao existam
+    await initDB();
+
     const boards = await getKanbanBoards();
     return NextResponse.json(boards);
   } catch (error) {

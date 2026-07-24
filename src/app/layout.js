@@ -13,10 +13,10 @@ export default function RootLayout({ children }) {
     <html lang="pt-BR">
       <body>
         <AuthProvider>
-          <PushNotificationBanner />
           <div className="app-layout">
             <Sidebar />
             <main className="main-content">
+              <PushNotificationBanner />
               {children}
             </main>
           </div>

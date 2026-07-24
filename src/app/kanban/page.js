@@ -42,8 +42,8 @@ export default function KanbanPage() {
       if (res.ok) {
         const data = await res.json();
         setBoards(data);
-        if (data.length > 0 && !selectedBoardId) {
-          setSelectedBoardId(data[0].id);
+        if (data.length > 0) {
+          setSelectedBoardId(prev => prev || data[0].id);
         }
       }
     } catch (err) {
@@ -71,6 +71,28 @@ export default function KanbanPage() {
   }, []);
 
   const activeBoard = boards.find(b => b.id === selectedBoardId) || boards[0];
+
+  // Auto-selecionar coluna padrao quando os modais abrirem
+  const openNewCardModal = () => {
+    if (activeBoard && activeBoard.columns.length > 0) {
+      setCardForm(prev => ({ ...prev, column_id: activeBoard.columns[0].id }));
+    }
+    setShowCardModal(true);
+  };
+
+  const openReminderModal = () => {
+    if (boards.length > 0) {
+      const firstBoard = activeBoard || boards[0];
+      if (firstBoard.columns.length > 0) {
+        setReminderForm(prev => ({
+          ...prev,
+          board_id: firstBoard.id,
+          column_id: firstBoard.columns[0].id
+        }));
+      }
+    }
+    setShowReminderModal(true);
+  };
 
   const handleCreateCard = async (e) => {
     e.preventDefault();
@@ -187,19 +209,14 @@ export default function KanbanPage() {
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
           <button
-            onClick={() => setShowReminderModal(true)}
+            onClick={openReminderModal}
             className="btn-secondary"
             style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
           >
             <FiClock /> Lembretes Diários ({reminders.length})
           </button>
           <button
-            onClick={() => {
-              if (activeBoard && activeBoard.columns.length > 0) {
-                setCardForm(prev => ({ ...prev, column_id: activeBoard.columns[0].id }));
-                setShowCardModal(true);
-              }
-            }}
+            onClick={openNewCardModal}
             className="btn-primary"
             style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
           >

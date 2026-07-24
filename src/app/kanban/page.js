@@ -187,16 +187,55 @@ export default function KanbanPage() {
 
   const handleTestNotification = async () => {
     try {
-      if (Notification.permission !== 'granted') {
-        alert('Por favor, clique em "Ativar Notificações" no banner superior primeiro.');
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        alert('Seu navegador não suporta notificações Push.');
         return;
       }
+
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        alert('Permissão de notificação negada no navegador. Habilite nas configurações do site (ícone de cadeado na barra de endereço).');
+        return;
+      }
+
+      // Garantir inscricao no banco
+      const registration = await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
+
+      if (!subscription) {
+        const VAPID_PUBLIC_KEY = 'BDJIX3Y8rAmuSTQh7lfueSHZOnkeUoYtd3USOKM6-1sf1TlxSxq2wJSvSCrBzQ1H-19jEvS3mTirjAn2enrw_eo';
+        const padding = '='.repeat((4 - (VAPID_PUBLIC_KEY.length % 4)) % 4);
+        const base64 = (VAPID_PUBLIC_KEY + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+          outputArray[i] = rawData.charCodeAt(i);
+        }
+
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: outputArray
+        });
+      }
+
+      // Enviar inscricao para o backend
+      await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscription,
+          userAgent: navigator.userAgent
+        })
+      });
+
+      // Disparar teste
       const res = await fetch('/api/push/test-notification', { method: 'POST' });
       const json = await res.json();
+
       if (res.ok) {
-        alert('Notificação de teste disparada! Verifique o seu dispositivo.');
+        alert('Notificação de teste enviada! Se você não vir um popup na tela, verifique a Central de Notificações do Windows.');
       } else {
-        alert('Erro ao disparar teste: ' + (json.error || 'Verifique se ativou as notificações.'));
+        alert('Erro ao disparar teste: ' + (json.error || 'Erro desconhecido.'));
       }
     } catch (err) {
       alert('Erro ao testar notificação: ' + err.message);

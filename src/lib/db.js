@@ -245,6 +245,7 @@ async function initKanbanAndRemindersDB(db) {
       titulo VARCHAR(250) NOT NULL,
       descricao TEXT,
       horario VARCHAR(5) NOT NULL,
+      prioridade VARCHAR(20) DEFAULT 'media',
       dias_semana JSONB DEFAULT '[0,1,2,3,4,5,6]',
       board_id INTEGER REFERENCES kanban_boards(id) ON DELETE CASCADE,
       column_id INTEGER REFERENCES kanban_columns(id) ON DELETE CASCADE,
@@ -341,12 +342,12 @@ export async function getRemindersRecurring() {
   return await db`SELECT * FROM reminders_recurring ORDER BY horario ASC`;
 }
 
-export async function createReminderRecurring({ titulo, descricao, horario, dias_semana, board_id, column_id }) {
+export async function createReminderRecurring({ titulo, descricao, horario, prioridade, dias_semana, board_id, column_id }) {
   const db = getSQL();
   if (!db) return null;
   const res = await db`
-    INSERT INTO reminders_recurring (titulo, descricao, horario, dias_semana, board_id, column_id)
-    VALUES (${titulo}, ${descricao || ''}, ${horario}, ${JSON.stringify(dias_semana || [0,1,2,3,4,5,6])}, ${board_id}, ${column_id})
+    INSERT INTO reminders_recurring (titulo, descricao, horario, prioridade, dias_semana, board_id, column_id)
+    VALUES (${titulo}, ${descricao || ''}, ${horario}, ${prioridade || 'media'}, ${JSON.stringify(dias_semana || [0,1,2,3,4,5,6])}, ${board_id || null}, ${column_id || null})
     RETURNING *
   `;
   return res[0];

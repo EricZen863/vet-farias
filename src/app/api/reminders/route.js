@@ -20,13 +20,13 @@ export async function POST(request) {
       return NextResponse.json({ message: 'DB not available' }, { status: 503 });
     }
     const body = await request.json();
-    const { titulo, descricao, horario, dias_semana, board_id, column_id } = body;
+    const { titulo, descricao, horario, prioridade, dias_semana, board_id, column_id } = body;
 
-    if (!titulo || !horario || !board_id || !column_id) {
+    if (!titulo || !horario) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const item = await createReminderRecurring({ titulo, descricao, horario, dias_semana, board_id, column_id });
+    const item = await createReminderRecurring({ titulo, descricao, horario, prioridade, dias_semana, board_id, column_id });
     return NextResponse.json(item, { status: 201 });
   } catch (error) {
     console.error('Error creating recurring reminder:', error);

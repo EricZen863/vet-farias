@@ -88,17 +88,10 @@ async function handleCheck() {
         continue;
       }
 
-      await createKanbanCard({
-        column_id: rec.column_id,
-        titulo: `[Diário] ${rec.titulo}`,
-        descricao: rec.descricao || 'Gerado automaticamente pelo sistema de lembretes diários.',
-        prioridade: 'alta',
-        dues_at: new Date().toISOString()
-      });
-
+      // Disparar Notificacao Push (sem criar cartao no Kanban)
       const payload = JSON.stringify({
-        title: `🔔 Tarefa Diária: ${rec.titulo}`,
-        body: rec.descricao || 'Hora de realizar a tarefa agendada!',
+        title: `⏰ Lembrete Diário: ${rec.titulo}`,
+        body: rec.descricao || 'Hora de realizar a sua tarefa agendada!',
         url: '/kanban',
         tag: `recurring-${rec.id}`
       });
@@ -117,7 +110,6 @@ async function handleCheck() {
         }
       }
 
-      // Atualizar ultimo_disparo = HOJE
       await db`UPDATE reminders_recurring SET ultimo_disparo = ${todayStr}::date WHERE id = ${rec.id}`;
     }
 

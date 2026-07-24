@@ -524,7 +524,7 @@ export default function KanbanPage() {
           <div className="login-card" style={{ maxWidth: '600px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
             <h2 style={{ fontSize: '20px', color: 'var(--primary-light)', marginBottom: '8px' }}>⏰ Lembretes Diários Recorrentes</h2>
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
-              Tarefas configuradas aqui gerarão automaticamente um cartão no Kanban e enviarão uma notificação Push no horário programado.
+              Tarefas configuradas aqui enviarão uma notificação Push no horário programado todos os dias.
             </p>
 
             {/* Form de Novo Lembrete */}
@@ -555,16 +555,15 @@ export default function KanbanPage() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Coluna Destino *</label>
+                  <label className="form-label">Prioridade</label>
                   <select
                     className="form-input"
-                    required
-                    value={reminderForm.column_id || ''}
-                    onChange={e => setReminderForm({ ...reminderForm, column_id: parseInt(e.target.value) })}
+                    value={reminderForm.prioridade || 'media'}
+                    onChange={e => setReminderForm({ ...reminderForm, prioridade: e.target.value })}
                   >
-                    {columns.map(col => (
-                      <option key={col.id} value={col.id}>{col.nome}</option>
-                    ))}
+                    <option value="baixa">Baixa</option>
+                    <option value="media">Média</option>
+                    <option value="alta">Alta</option>
                   </select>
                 </div>
               </div>
@@ -574,7 +573,7 @@ export default function KanbanPage() {
               </button>
             </form>
 
-            {/* Lista de Lembretes */}
+            {/* Lista de Lembretes Programados */}
             <h3 style={{ fontSize: '14px', color: 'var(--text)', marginBottom: '12px' }}>Lembretes Programados ({reminders.length})</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {reminders.length === 0 ? (
@@ -582,20 +581,37 @@ export default function KanbanPage() {
                   Nenhum lembrete diário cadastrado ainda.
                 </div>
               ) : (
-                reminders.map(r => (
-                  <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)' }}>
-                    <div>
-                      <strong style={{ fontSize: '14px', color: 'var(--text)', display: 'block' }}>{r.titulo}</strong>
-                      <span style={{ fontSize: '12px', color: 'var(--primary-light)' }}>⏰ Todos os dias às {r.horario} hs</span>
+                reminders.map(r => {
+                  const prio = priorityColors[r.prioridade] || priorityColors.media;
+                  return (
+                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <strong style={{ fontSize: '14px', color: 'var(--text)' }}>{r.titulo}</strong>
+                          <span style={{
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            padding: '1px 5px',
+                            borderRadius: '4px',
+                            backgroundColor: prio.bg,
+                            color: prio.text,
+                            border: `1px solid ${prio.border}`,
+                            textTransform: 'uppercase'
+                          }}>
+                            {r.prioridade || 'media'}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '12px', color: 'var(--primary-light)', marginTop: '2px', display: 'block' }}>⏰ Todos os dias às {r.horario} hs</span>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteReminder(r.id)}
+                        className="btn-danger btn-small"
+                      >
+                        Remover
+                      </button>
                     </div>
-                    <button
-                      onClick={() => handleDeleteReminder(r.id)}
-                      className="btn-danger btn-small"
-                    >
-                      Remover
-                    </button>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
 

@@ -1,0 +1,16 @@
+{
+  "name": "Vet Farias - Gestão Interna",
+  "short_name": "Vet Farias",
+  "description": "Sistema de Gestão Interna e Kanban da Clínica Vet Farias",
+  "start_url": "/kanban",
+  "display": "standalone",
+  "background_color": "#0f0f14",
+  "theme_color": "#8c69ac",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}

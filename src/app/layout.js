@@ -6,6 +6,12 @@ import PushNotificationBanner from '../components/PushNotificationBanner';
 export const metadata = {
   title: 'Vet Farias - Gestão Interna',
   description: 'Sistema de gestão interna da clínica veterinária Vet Farias',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Vet Farias'
+  }
 };
 
 export default function RootLayout({ children }) {

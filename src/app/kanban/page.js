@@ -145,7 +145,7 @@ export default function KanbanPage() {
 
   const handleCreateReminder = async (e) => {
     e.preventDefault();
-    if (!reminderForm.titulo || !reminderForm.horario || !reminderForm.column_id || !boardId) return;
+    if (!reminderForm.titulo || !reminderForm.horario) return;
 
     try {
       const res = await fetch('/api/reminders', {
@@ -155,14 +155,13 @@ export default function KanbanPage() {
           titulo: reminderForm.titulo,
           descricao: reminderForm.descricao,
           horario: reminderForm.horario,
-          dias_semana: [0, 1, 2, 3, 4, 5, 6],
-          board_id: boardId,
-          column_id: reminderForm.column_id
+          prioridade: reminderForm.prioridade || 'media',
+          dias_semana: [0, 1, 2, 3, 4, 5, 6]
         })
       });
 
       if (res.ok) {
-        setReminderForm({ titulo: '', descricao: '', horario: '08:00', column_id: columns[0]?.id || null });
+        setReminderForm({ titulo: '', descricao: '', horario: '08:00', prioridade: 'media' });
         loadReminders();
       }
     } catch (err) {

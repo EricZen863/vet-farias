@@ -255,6 +255,9 @@ async function initKanbanAndRemindersDB(db) {
     )
   `;
 
+  // Garantir que colunas recentes existam em bancos existentes
+  await db`ALTER TABLE reminders_recurring ADD COLUMN IF NOT EXISTS prioridade VARCHAR(20) DEFAULT 'media'`;
+
   await db`
     CREATE TABLE IF NOT EXISTS push_subscriptions (
       id SERIAL PRIMARY KEY,

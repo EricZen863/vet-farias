@@ -163,9 +163,13 @@ export default function KanbanPage() {
       if (res.ok) {
         setReminderForm({ titulo: '', descricao: '', horario: '08:00', prioridade: 'media' });
         loadReminders();
+      } else {
+        const errJson = await res.json();
+        alert('Erro ao salvar lembrete: ' + (errJson.error || 'Falha na resposta do servidor'));
       }
     } catch (err) {
       console.error('Erro ao criar lembrete diário:', err);
+      alert('Erro de conexão ao criar lembrete diário: ' + err.message);
     }
   };
 

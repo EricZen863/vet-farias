@@ -352,7 +352,6 @@ export async function createReminderRecurring({ titulo, descricao, horario, prio
   let targetBoardId = board_id;
   let targetColumnId = column_id;
 
-  // Se nao forem fornecidos, buscar o primeiro quadro e coluna disponiveis
   if (!targetBoardId || !targetColumnId) {
     const boards = await db`SELECT id FROM kanban_boards ORDER BY id ASC LIMIT 1`;
     if (boards.length > 0) {
@@ -364,9 +363,17 @@ export async function createReminderRecurring({ titulo, descricao, horario, prio
     }
   }
 
+  // Obter hora e data atual no Fuso de Brasilia (America/Sao_Paulo)
+  const nowBr = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+  const brHourMin = nowBr.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const brTodayStr = nowBr.toISOString().split('T')[0];
+
+  // Se o horario agendado ja passou no dia de hoje em Brasilia, marcar ultimo_disparo = HOJE para disparar so amanha
+  const ultimoDisparo = (horario <= brHourMin) ? brTodayStr : null;
+
   const res = await db`
-    INSERT INTO reminders_recurring (titulo, descricao, horario, prioridade, dias_semana, board_id, column_id)
-    VALUES (${titulo}, ${descricao || ''}, ${horario}, ${prioridade || 'media'}, ${JSON.stringify(dias_semana || [0,1,2,3,4,5,6])}, ${targetBoardId || null}, ${targetColumnId || null})
+    INSERT INTO reminders_recurring (titulo, descricao, horario, prioridade, dias_semana, board_id, column_id, ultimo_disparo)
+    VALUES (${titulo}, ${descricao || ''}, ${horario}, ${prioridade || 'media'}, ${JSON.stringify(dias_semana || [0,1,2,3,4,5,6])}, ${targetBoardId || null}, ${targetColumnId || null}, ${ultimoDisparo ? db`${ultimoDisparo}::date` : null})
     RETURNING *
   `;
   return res[0];

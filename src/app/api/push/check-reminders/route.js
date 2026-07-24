@@ -68,17 +68,17 @@ async function handleCheck() {
     }
 
     // 2. Processar Lembretes Diários Recorrentes (reminders_recurring)
-    const now = new Date();
-    const currentHourMin = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false });
-    const todayStr = now.toISOString().split('T')[0];
-    const currentDayOfWeek = now.getDay();
+    const nowBr = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const brHourMin = nowBr.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const todayStr = nowBr.toISOString().split('T')[0];
+    const currentDayOfWeek = nowBr.getDay();
 
     const recurringList = await db`
       SELECT r.*, col.id as target_col_id
       FROM reminders_recurring r
       JOIN kanban_columns col ON r.column_id = col.id
       WHERE r.ativo = true
-        AND r.horario <= ${currentHourMin}
+        AND r.horario <= ${brHourMin}
         AND (r.ultimo_disparo IS NULL OR r.ultimo_disparo < ${todayStr}::date)
     `;
 

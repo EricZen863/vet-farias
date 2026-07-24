@@ -43,10 +43,9 @@ async function handleCheck() {
     `;
 
     for (const card of pendingCards) {
-      // Disparar Notificação Push
       const payload = JSON.stringify({
         title: `⏰ Lembrete: ${card.titulo}`,
-        body: `Setor: ${card.board_nome} | Coluna: ${card.coluna_nome}\n${card.descricao || ''}`,
+        body: `${card.coluna_nome}: ${card.descricao || 'Hora do seu compromisso/tarefa!'}`,
         url: '/kanban',
         tag: `card-${card.id}`
       });
@@ -60,13 +59,11 @@ async function handleCheck() {
           notificationsSent++;
         } catch (err) {
           if (err.statusCode === 410 || err.statusCode === 404) {
-            // Subscription expired, clean up
             await db`DELETE FROM push_subscriptions WHERE endpoint = ${sub.endpoint}`;
           }
         }
       }
 
-      // Marcar lembrete_enviado = true
       await db`UPDATE kanban_cards SET lembrete_enviado = true WHERE id = ${card.id}`;
     }
 
@@ -74,13 +71,12 @@ async function handleCheck() {
     const now = new Date();
     const currentHourMin = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false });
     const todayStr = now.toISOString().split('T')[0];
-    const currentDayOfWeek = now.getDay(); // 0-Dom a 6-Sab
+    const currentDayOfWeek = now.getDay();
 
     const recurringList = await db`
-      SELECT r.*, col.id as target_col_id, b.nome as board_nome
+      SELECT r.*, col.id as target_col_id
       FROM reminders_recurring r
       JOIN kanban_columns col ON r.column_id = col.id
-      JOIN kanban_boards b ON r.board_id = b.id
       WHERE r.ativo = true
         AND r.horario <= ${currentHourMin}
         AND (r.ultimo_disparo IS NULL OR r.ultimo_disparo < ${todayStr}::date)
@@ -92,7 +88,6 @@ async function handleCheck() {
         continue;
       }
 
-      // Criar cartão automático na coluna A Fazer do Kanban
       await createKanbanCard({
         column_id: rec.column_id,
         titulo: `[Diário] ${rec.titulo}`,
@@ -101,10 +96,9 @@ async function handleCheck() {
         dues_at: new Date().toISOString()
       });
 
-      // Disparar Notificação Push
       const payload = JSON.stringify({
         title: `🔔 Tarefa Diária: ${rec.titulo}`,
-        body: `Setor: ${rec.board_nome}\n${rec.descricao || 'Hora de realizar a tarefa agendada!'}`,
+        body: rec.descricao || 'Hora de realizar a tarefa agendada!',
         url: '/kanban',
         tag: `recurring-${rec.id}`
       });

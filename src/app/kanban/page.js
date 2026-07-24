@@ -185,6 +185,24 @@ export default function KanbanPage() {
     baixa: { bg: 'rgba(74, 222, 128, 0.15)', text: '#4ade80', border: 'rgba(74, 222, 128, 0.3)' }
   };
 
+  const handleTestNotification = async () => {
+    try {
+      if (Notification.permission !== 'granted') {
+        alert('Por favor, clique em "Ativar Notificações" no banner superior primeiro.');
+        return;
+      }
+      const res = await fetch('/api/push/test-notification', { method: 'POST' });
+      const json = await res.json();
+      if (res.ok) {
+        alert('Notificação de teste disparada! Verifique o seu dispositivo.');
+      } else {
+        alert('Erro ao disparar teste: ' + (json.error || 'Verifique se ativou as notificações.'));
+      }
+    } catch (err) {
+      alert('Erro ao testar notificação: ' + err.message);
+    }
+  };
+
   return (
     <div style={{ paddingBottom: '40px' }}>
       {/* Header da Página */}
@@ -193,7 +211,14 @@ export default function KanbanPage() {
           <h1 className="page-title">Kanban & Lembretes</h1>
           <p className="page-subtitle">Gerencie tarefas e receba notificações Push de lembretes diários no celular e computador.</p>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <button
+            onClick={handleTestNotification}
+            className="btn-secondary"
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid var(--primary-light)', color: 'var(--primary-light)' }}
+          >
+            <FiClock /> Testar Notificação Push
+          </button>
           <button
             onClick={openReminderModal}
             className="btn-secondary"

@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiBell, FiCheck, FiX } from 'react-icons/fi';
-
-const VAPID_PUBLIC_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa1F3A_vFf1K-tF5iP117j8x8m90iZ-qKj-65Z1';
+import { FiBell, FiCheck, FiX, FiSend } from 'react-icons/fi';
+import { VAPID_PUBLIC_KEY } from '@/lib/vapidKeys';
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);

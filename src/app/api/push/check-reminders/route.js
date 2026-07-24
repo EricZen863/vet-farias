@@ -1,19 +1,16 @@
 import { NextResponse } from 'next/server';
 import { getSQL, isDBAvailable, getPushSubscriptions, createKanbanCard } from '@/lib/db';
+import { VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY } from '@/lib/vapidKeys';
 import webpush from 'web-push';
-
-// Configurar VAPID com fallback seguro para dev
-const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 'BEl62iUYgUivxIkv69yViEuiBIa1F3A_vFf1K-tF5iP117j8x8m90iZ-qKj-65Z1';
-const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || 'uKj55iZ-qKj-65Z18m90iZ-qKj-65Z1BEl62iUYgUi';
 
 try {
   webpush.setVapidDetails(
-    'mailto:contato@vetfarias.com.br',
-    vapidPublicKey,
-    vapidPrivateKey
+    'mailto:suporte@vetfarias.com.br',
+    VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY
   );
 } catch (e) {
-  // Ignore VAPID config error if invalid keys in local dev
+  console.error('VAPID setup error:', e);
 }
 
 export async function GET() {

@@ -43,7 +43,16 @@ export default function KanbanPage() {
         const data = await res.json();
         setBoards(data);
         if (data.length > 0) {
-          setSelectedBoardId(prev => prev || data[0].id);
+          const firstBoard = data[0];
+          setSelectedBoardId(prev => prev || firstBoard.id);
+          if (firstBoard.columns && firstBoard.columns.length > 0) {
+            setCardForm(prev => ({ ...prev, column_id: prev.column_id || firstBoard.columns[0].id }));
+            setReminderForm(prev => ({
+              ...prev,
+              board_id: prev.board_id || firstBoard.id,
+              column_id: prev.column_id || firstBoard.columns[0].id
+            }));
+          }
         }
       }
     } catch (err) {

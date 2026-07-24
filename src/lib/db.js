@@ -281,7 +281,22 @@ async function initKanbanAndRemindersDB(db) {
 export async function getKanbanBoards() {
   const db = getSQL();
   if (!db) return [];
-  const boards = await db`SELECT * FROM kanban_boards ORDER BY id ASC`;
+
+  let boards = await db`SELECT * FROM kanban_boards ORDER BY id ASC`;
+
+  // Se nao existir nenhum setor/quadro, criar os 4 padrao
+  if (boards.length === 0) {
+    const defaultBoards = ['Recepção', 'Clínica', 'Cirurgias', 'Geral'];
+    for (const bNome of defaultBoards) {
+      const res = await db`INSERT INTO kanban_boards (nome, cor) VALUES (${bNome}, '#8c69ac') RETURNING id`;
+      const bId = res[0].id;
+      await db`INSERT INTO kanban_columns (board_id, nome, ordem) VALUES (${bId}, 'A Fazer', 1)`;
+      await db`INSERT INTO kanban_columns (board_id, nome, ordem) VALUES (${bId}, 'Em Andamento', 2)`;
+      await db`INSERT INTO kanban_columns (board_id, nome, ordem) VALUES (${bId}, 'Concluído', 3)`;
+    }
+    boards = await db`SELECT * FROM kanban_boards ORDER BY id ASC`;
+  }
+
   const columns = await db`SELECT * FROM kanban_columns ORDER BY ordem ASC`;
   const cards = await db`SELECT * FROM kanban_cards ORDER BY ordem ASC, id DESC`;
 

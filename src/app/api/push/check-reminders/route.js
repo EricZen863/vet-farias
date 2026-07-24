@@ -88,10 +88,12 @@ async function handleCheck() {
         continue;
       }
 
-      // Disparar Notificacao Push (sem criar cartao no Kanban)
+      const prioEmoji = rec.prioridade === 'alta' ? '🔴 ALTA' : rec.prioridade === 'baixa' ? '🟢 BAIXA' : '🟡 MÉDIA';
+
+      // Disparar Notificacao Push com Prioridade e Descricao
       const payload = JSON.stringify({
-        title: `⏰ Lembrete Diário: ${rec.titulo}`,
-        body: rec.descricao || 'Hora de realizar a sua tarefa agendada!',
+        title: `⏰ [${prioEmoji}] ${rec.titulo}`,
+        body: rec.descricao ? `${rec.descricao}` : 'Hora de realizar a sua tarefa agendada!',
         url: '/kanban',
         tag: `recurring-${rec.id}`
       });

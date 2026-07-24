@@ -545,6 +545,17 @@ export default function KanbanPage() {
                 />
               </div>
 
+              <div className="form-group" style={{ marginBottom: '12px' }}>
+                <label className="form-label">Descrição / Observações</label>
+                <textarea
+                  className="form-input"
+                  rows={2}
+                  value={reminderForm.descricao || ''}
+                  onChange={e => setReminderForm({ ...reminderForm, descricao: e.target.value })}
+                  placeholder="Detalhes adicionais do lembrete..."
+                />
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
                 <div className="form-group">
                   <label className="form-label">Horário do Disparo (HH:mm) *</label>
@@ -604,6 +615,9 @@ export default function KanbanPage() {
                             {r.prioridade || 'media'}
                           </span>
                         </div>
+                        {r.descricao && (
+                          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>{r.descricao}</p>
+                        )}
                         <span style={{ fontSize: '12px', color: 'var(--primary-light)', marginTop: '2px', display: 'block' }}>⏰ Todos os dias às {r.horario} hs</span>
                       </div>
                       <button

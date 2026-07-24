@@ -1,6 +1,7 @@
 import './globals.css';
 import { AuthProvider } from '../components/AuthProvider';
 import Sidebar from '../components/Sidebar';
+import PushNotificationBanner from '../components/PushNotificationBanner';
 
 export const metadata = {
   title: 'Vet Farias - Gestão Interna',
@@ -12,6 +13,7 @@ export default function RootLayout({ children }) {
     <html lang="pt-BR">
       <body>
         <AuthProvider>
+          <PushNotificationBanner />
           <div className="app-layout">
             <Sidebar />
             <main className="main-content">

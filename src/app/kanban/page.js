@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import {
-  FiPlus, FiClock, FiCalendar, FiTrash2, FiAlertCircle,
-  FiCheckCircle, FiChevronRight, FiChevronLeft, FiRefreshCw
+  FiPlus, FiClock, FiTrash2, FiChevronRight, FiChevronLeft, FiCheckCircle
 } from 'react-icons/fi';
 
 export default function KanbanPage() {
-  const [boards, setBoards] = useState([]);
-  const [selectedBoardId, setSelectedBoardId] = useState(null);
+  const [columns, setColumns] = useState([]);
+  const [boardId, setBoardId] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Modais
@@ -22,8 +21,7 @@ export default function KanbanPage() {
     titulo: '',
     descricao: '',
     prioridade: 'media',
-    dues_at: '',
-    etiquetasStr: ''
+    dues_at: ''
   });
 
   // Form de Lembrete Diário Recorrente
@@ -31,9 +29,7 @@ export default function KanbanPage() {
     titulo: '',
     descricao: '',
     horario: '08:00',
-    board_id: null,
-    column_id: null,
-    dias_semana: [0, 1, 2, 3, 4, 5, 6]
+    column_id: null
   });
 
   const loadData = async () => {
@@ -41,22 +37,19 @@ export default function KanbanPage() {
       const res = await fetch('/api/kanban/boards');
       if (res.ok) {
         const data = await res.json();
-        setBoards(data);
         if (data.length > 0) {
-          const firstBoard = data[0];
-          setSelectedBoardId(prev => prev || firstBoard.id);
-          if (firstBoard.columns && firstBoard.columns.length > 0) {
-            setCardForm(prev => ({ ...prev, column_id: prev.column_id || firstBoard.columns[0].id }));
-            setReminderForm(prev => ({
-              ...prev,
-              board_id: prev.board_id || firstBoard.id,
-              column_id: prev.column_id || firstBoard.columns[0].id
-            }));
+          const board = data[0];
+          setBoardId(board.id);
+          setColumns(board.columns || []);
+          if (board.columns && board.columns.length > 0) {
+            const firstColId = board.columns[0].id;
+            setCardForm(prev => ({ ...prev, column_id: prev.column_id || firstColId }));
+            setReminderForm(prev => ({ ...prev, column_id: prev.column_id || firstColId }));
           }
         }
       }
     } catch (err) {
-      console.error('Erro ao carregar quadros:', err);
+      console.error('Erro ao carregar Kanban:', err);
     } finally {
       setLoading(false);
     }
@@ -79,26 +72,17 @@ export default function KanbanPage() {
     loadReminders();
   }, []);
 
-  const activeBoard = boards.find(b => b.id === selectedBoardId) || boards[0];
-
-  // Auto-selecionar coluna padrao quando os modais abrirem
-  const openNewCardModal = () => {
-    if (activeBoard && activeBoard.columns.length > 0) {
-      setCardForm(prev => ({ ...prev, column_id: activeBoard.columns[0].id }));
-    }
+  const openNewCardModal = (colId) => {
+    setCardForm(prev => ({
+      ...prev,
+      column_id: colId || (columns.length > 0 ? columns[0].id : null)
+    }));
     setShowCardModal(true);
   };
 
   const openReminderModal = () => {
-    if (boards.length > 0) {
-      const firstBoard = activeBoard || boards[0];
-      if (firstBoard.columns.length > 0) {
-        setReminderForm(prev => ({
-          ...prev,
-          board_id: firstBoard.id,
-          column_id: firstBoard.columns[0].id
-        }));
-      }
+    if (columns.length > 0) {
+      setReminderForm(prev => ({ ...prev, column_id: prev.column_id || columns[0].id }));
     }
     setShowReminderModal(true);
   };
@@ -108,10 +92,6 @@ export default function KanbanPage() {
     if (!cardForm.titulo || !cardForm.column_id) return;
 
     try {
-      const etiquetas = cardForm.etiquetasStr
-        ? cardForm.etiquetasStr.split(',').map(s => s.trim()).filter(Boolean)
-        : [];
-
       const res = await fetch('/api/kanban/cards', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -120,14 +100,13 @@ export default function KanbanPage() {
           titulo: cardForm.titulo,
           descricao: cardForm.descricao,
           prioridade: cardForm.prioridade,
-          dues_at: cardForm.dues_at ? new Date(cardForm.dues_at).toISOString() : null,
-          etiquetas
+          dues_at: cardForm.dues_at ? new Date(cardForm.dues_at).toISOString() : null
         })
       });
 
       if (res.ok) {
         setShowCardModal(false);
-        setCardForm({ column_id: null, titulo: '', descricao: '', prioridade: 'media', dues_at: '', etiquetasStr: '' });
+        setCardForm({ column_id: columns[0]?.id || null, titulo: '', descricao: '', prioridade: 'media', dues_at: '' });
         loadData();
       }
     } catch (err) {
@@ -136,8 +115,6 @@ export default function KanbanPage() {
   };
 
   const handleMoveCard = async (cardId, currentColumnId, direction) => {
-    if (!activeBoard) return;
-    const columns = activeBoard.columns;
     const currentIndex = columns.findIndex(c => c.id === currentColumnId);
     const targetIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
 
@@ -168,7 +145,7 @@ export default function KanbanPage() {
 
   const handleCreateReminder = async (e) => {
     e.preventDefault();
-    if (!reminderForm.titulo || !reminderForm.horario || !reminderForm.column_id) return;
+    if (!reminderForm.titulo || !reminderForm.horario || !reminderForm.column_id || !boardId) return;
 
     try {
       const res = await fetch('/api/reminders', {
@@ -178,14 +155,14 @@ export default function KanbanPage() {
           titulo: reminderForm.titulo,
           descricao: reminderForm.descricao,
           horario: reminderForm.horario,
-          dias_semana: reminderForm.dias_semana,
-          board_id: reminderForm.board_id || activeBoard?.id,
+          dias_semana: [0, 1, 2, 3, 4, 5, 6],
+          board_id: boardId,
           column_id: reminderForm.column_id
         })
       });
 
       if (res.ok) {
-        setReminderForm({ titulo: '', descricao: '', horario: '08:00', board_id: null, column_id: null, dias_semana: [0, 1, 2, 3, 4, 5, 6] });
+        setReminderForm({ titulo: '', descricao: '', horario: '08:00', column_id: columns[0]?.id || null });
         loadReminders();
       }
     } catch (err) {
@@ -213,8 +190,8 @@ export default function KanbanPage() {
       {/* Header da Página */}
       <div className="page-header-row" style={{ marginBottom: '24px' }}>
         <div>
-          <h1 className="page-title">Kanban & Lembretes por Setor</h1>
-          <p className="page-subtitle">Gerencie tarefas organizadas por departamento e receba notificações Push de lembretes diários.</p>
+          <h1 className="page-title">Kanban & Lembretes</h1>
+          <p className="page-subtitle">Gerencie tarefas e receba notificações Push de lembretes diários no celular e computador.</p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
           <button
@@ -225,7 +202,7 @@ export default function KanbanPage() {
             <FiClock /> Lembretes Diários ({reminders.length})
           </button>
           <button
-            onClick={openNewCardModal}
+            onClick={() => openNewCardModal(null)}
             className="btn-primary"
             style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
           >
@@ -234,54 +211,20 @@ export default function KanbanPage() {
         </div>
       </div>
 
-      {/* Tabs de Setores / Quadros */}
-      <div style={{
-        display: 'flex',
-        gap: '8px',
-        borderBottom: '1px solid var(--border)',
-        paddingBottom: '12px',
-        marginBottom: '24px',
-        overflowX: 'auto'
-      }}>
-        {boards.map(board => (
-          <button
-            key={board.id}
-            onClick={() => setSelectedBoardId(board.id)}
-            style={{
-              padding: '10px 20px',
-              borderRadius: 'var(--radius-sm)',
-              border: 'none',
-              backgroundColor: selectedBoardId === board.id ? 'var(--primary)' : 'var(--bg-card)',
-              color: selectedBoardId === board.id ? '#fff' : 'var(--text-secondary)',
-              fontWeight: 600,
-              fontSize: '14px',
-              cursor: 'pointer',
-              transition: 'var(--transition)'
-            }}
-          >
-            {board.nome}
-          </button>
-        ))}
-      </div>
-
-      {/* Grid de Colunas do Kanban */}
+      {/* Quadro Kanban */}
       {loading ? (
         <div className="card" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
           Carregando Kanban...
         </div>
-      ) : !activeBoard ? (
-        <div className="card" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-          Nenhum quadro disponível.
-        </div>
       ) : (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: `repeat(${activeBoard.columns.length}, minmax(280px, 1fr))`,
+          gridTemplateColumns: `repeat(${columns.length || 3}, minmax(280px, 1fr))`,
           gap: '20px',
           alignItems: 'start',
           overflowX: 'auto'
         }}>
-          {activeBoard.columns.map((col, cIdx) => (
+          {columns.map((col, cIdx) => (
             <div
               key={col.id}
               style={{
@@ -289,7 +232,7 @@ export default function KanbanPage() {
                 borderRadius: 'var(--radius)',
                 border: '1px solid var(--border)',
                 padding: '16px',
-                minHeight: '400px',
+                minHeight: '420px',
                 display: 'flex',
                 flexDirection: 'column'
               }}
@@ -382,7 +325,7 @@ export default function KanbanPage() {
                           </div>
                         )}
 
-                        {/* Botões de Mover Cartão */}
+                        {/* Mover Cartão */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--border-light)' }}>
                           {cIdx > 0 ? (
                             <button
@@ -392,7 +335,7 @@ export default function KanbanPage() {
                               <FiChevronLeft /> Anterior
                             </button>
                           ) : <div />}
-                          {cIdx < activeBoard.columns.length - 1 ? (
+                          {cIdx < columns.length - 1 ? (
                             <button
                               onClick={() => handleMoveCard(card.id, col.id, 'next')}
                               style={{ background: 'none', border: 'none', color: 'var(--primary-light)', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '2px' }}
@@ -409,10 +352,7 @@ export default function KanbanPage() {
 
               {/* Botão Adicionar Cartão na Coluna */}
               <button
-                onClick={() => {
-                  setCardForm(prev => ({ ...prev, column_id: col.id }));
-                  setShowCardModal(true);
-                }}
+                onClick={() => openNewCardModal(col.id)}
                 style={{
                   width: '100%',
                   marginTop: '12px',
@@ -451,7 +391,7 @@ export default function KanbanPage() {
                   required
                   value={cardForm.titulo}
                   onChange={e => setCardForm({ ...cardForm, titulo: e.target.value })}
-                  placeholder="Ex: Retorno da Vacina do Pet Banzé"
+                  placeholder="Ex: [Recepção] Retorno da Vacina Banzé"
                 />
               </div>
 
@@ -459,10 +399,11 @@ export default function KanbanPage() {
                 <label className="form-label">Coluna Destino *</label>
                 <select
                   className="form-input"
+                  required
                   value={cardForm.column_id || ''}
                   onChange={e => setCardForm({ ...cardForm, column_id: parseInt(e.target.value) })}
                 >
-                  {activeBoard?.columns.map(c => (
+                  {columns.map(c => (
                     <option key={c.id} value={c.id}>{c.nome}</option>
                   ))}
                 </select>
@@ -533,7 +474,7 @@ export default function KanbanPage() {
                   required
                   value={reminderForm.titulo}
                   onChange={e => setReminderForm({ ...reminderForm, titulo: e.target.value })}
-                  placeholder="Ex: Limpeza e higienização dos canis"
+                  placeholder="Ex: [Limpeza] Higienização dos canis"
                 />
               </div>
 
@@ -550,24 +491,15 @@ export default function KanbanPage() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Setor / Coluna Destino *</label>
+                  <label className="form-label">Coluna Destino *</label>
                   <select
                     className="form-input"
                     required
                     value={reminderForm.column_id || ''}
-                    onChange={e => {
-                      const colId = parseInt(e.target.value);
-                      const b = boards.find(board => board.columns.some(col => col.id === colId));
-                      setReminderForm({ ...reminderForm, column_id: colId, board_id: b?.id });
-                    }}
+                    onChange={e => setReminderForm({ ...reminderForm, column_id: parseInt(e.target.value) })}
                   >
-                    <option value="">Selecione a coluna...</option>
-                    {boards.map(b => (
-                      <optgroup key={b.id} label={b.nome}>
-                        {b.columns.map(col => (
-                          <option key={col.id} value={col.id}>{b.nome} → {col.nome}</option>
-                        ))}
-                      </optgroup>
+                    {columns.map(col => (
+                      <option key={col.id} value={col.id}>{col.nome}</option>
                     ))}
                   </select>
                 </div>
@@ -578,11 +510,11 @@ export default function KanbanPage() {
               </button>
             </form>
 
-            {/* Lista de Lembretes Cadastrados */}
+            {/* Lista de Lembretes */}
             <h3 style={{ fontSize: '14px', color: 'var(--text)', marginBottom: '12px' }}>Lembretes Programados ({reminders.length})</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {reminders.length === 0 ? (
-                <div style={{ textAlignment: 'center', padding: '16px', color: 'var(--text-muted)', fontSize: '13px' }}>
+                <div style={{ textAlign: 'center', padding: '16px', color: 'var(--text-muted)', fontSize: '13px' }}>
                   Nenhum lembrete diário cadastrado ainda.
                 </div>
               ) : (
@@ -603,7 +535,7 @@ export default function KanbanPage() {
               )}
             </div>
 
-            <div style={{ marginTop: '20px', textAlignment: 'right' }}>
+            <div style={{ marginTop: '20px', textAlign: 'right' }}>
               <button onClick={() => setShowReminderModal(false)} className="btn-secondary">Fechar</button>
             </div>
           </div>

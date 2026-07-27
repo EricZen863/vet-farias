@@ -373,7 +373,7 @@ export async function createReminderRecurring({ titulo, descricao, horario, prio
 
   const res = await db`
     INSERT INTO reminders_recurring (titulo, descricao, horario, prioridade, dias_semana, board_id, column_id, ultimo_disparo)
-    VALUES (${titulo}, ${descricao || ''}, ${horario}, ${prioridade || 'media'}, ${JSON.stringify(dias_semana || [0,1,2,3,4,5,6])}, ${targetBoardId || null}, ${targetColumnId || null}, ${ultimoDisparo ? db`${ultimoDisparo}::date` : null})
+    VALUES (${titulo}, ${descricao || ''}, ${horario}, ${prioridade || 'media'}, ${JSON.stringify(dias_semana || [0,1,2,3,4,5,6])}, ${targetBoardId || null}, ${targetColumnId || null}, ${ultimoDisparo})
     RETURNING *
   `;
   return res[0];

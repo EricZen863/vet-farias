@@ -127,7 +127,7 @@ export default function MaquinetasPage() {
           const mRecords = records[m.id] || [];
           const total = mRecords.reduce((sum, r) => sum + r.valor, 0);
           const totalProdutos = mRecords.reduce((sum, r) => sum + (r.valor_produto || 0), 0);
-          const totalServicos = total - totalProdutos;
+          const totalServicos = Math.max(0, total - totalProdutos);
           const maximo = m.maximo || 0;
           const percent = maximo > 0 ? Math.min((total / maximo) * 100, 100) : 0;
           const isNearLimit = maximo > 0 && percent >= 80;
@@ -195,7 +195,7 @@ export default function MaquinetasPage() {
                     <table>
                       <thead><tr><th>Data</th><th>Nota</th><th>Total Dia</th><th>Prod.</th><th>Serviço</th><th></th></tr></thead>
                       <tbody>{mRecords.map((r) => {
-                        const servico = r.valor - (r.valor_produto || 0);
+                        const servico = Math.max(0, r.valor - (r.valor_produto || 0));
                         return (
                         <tr key={r.id}>
                           <td style={{ fontSize: '12px' }}>{formatDate(r.data)}</td>

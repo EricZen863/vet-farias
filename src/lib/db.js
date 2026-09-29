@@ -258,6 +258,11 @@ async function initKanbanAndRemindersDB(db) {
 
   // Garantir que colunas recentes existam em bancos existentes
   await db`ALTER TABLE reminders_recurring ADD COLUMN IF NOT EXISTS prioridade VARCHAR(20) DEFAULT 'media'`;
+  try {
+    await db`ALTER TABLE kanban_cards ALTER COLUMN dues_at TYPE TIMESTAMPTZ`;
+  } catch (err) {
+    // Ignora se ja for timestamptz
+  }
 
   await db`
     CREATE TABLE IF NOT EXISTS push_subscriptions (

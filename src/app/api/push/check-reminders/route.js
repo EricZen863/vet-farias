@@ -42,24 +42,35 @@ async function handleCheck() {
         AND c.lembrete_enviado = false
     `;
 
-    for (const card of pendingCards) {
-      const payload = JSON.stringify({
-        title: `⏰ Lembrete: ${card.titulo}`,
-        body: `${card.coluna_nome}: ${card.descricao || 'Hora do seu compromisso/tarefa!'}`,
-        url: '/kanban',
-        tag: `card-${card.id}`
-      });
+    const nowTimestamp = Date.now();
 
-      for (const sub of subs) {
-        try {
-          await webpush.sendNotification(
-            { endpoint: sub.endpoint, keys: sub.keys },
-            payload
-          );
-          notificationsSent++;
-        } catch (err) {
-          if (err.statusCode === 410 || err.statusCode === 404) {
-            await db`DELETE FROM push_subscriptions WHERE endpoint = ${sub.endpoint}`;
+    for (const card of pendingCards) {
+      const cardDueTimestamp = new Date(card.dues_at).getTime();
+      const diffMinutes = (nowTimestamp - cardDueTimestamp) / (1000 * 60);
+
+      // SÓ dispara se estiver dentro da janela recente de até 15 minutos do horário agendado
+      // Se tiver passado há mais de 15 minutos (ex: site ficou fechado), apenas marca como enviado sem apitar atrasado
+      const withinWindow = diffMinutes >= 0 && diffMinutes <= 15;
+
+      if (withinWindow && subs.length > 0) {
+        const payload = JSON.stringify({
+          title: `⏰ Lembrete: ${card.titulo}`,
+          body: `${card.coluna_nome}: ${card.descricao || 'Hora do seu compromisso/tarefa!'}`,
+          url: '/kanban',
+          tag: `card-${card.id}`
+        });
+
+        for (const sub of subs) {
+          try {
+            await webpush.sendNotification(
+              { endpoint: sub.endpoint, keys: sub.keys },
+              payload
+            );
+            notificationsSent++;
+          } catch (err) {
+            if (err.statusCode === 410 || err.statusCode === 404) {
+              await db`DELETE FROM push_subscriptions WHERE endpoint = ${sub.endpoint}`;
+            }
           }
         }
       }
@@ -69,7 +80,9 @@ async function handleCheck() {
 
     // 2. Processar Lembretes Diários Recorrentes (reminders_recurring)
     const nowBr = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-    const brHourMin = nowBr.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const currentHour = nowBr.getHours();
+    const currentMinute = nowBr.getMinutes();
+    const currentTotalMin = currentHour * 60 + currentMinute;
     const todayStr = nowBr.toISOString().split('T')[0];
     const currentDayOfWeek = nowBr.getDay();
 
@@ -78,7 +91,6 @@ async function handleCheck() {
       FROM reminders_recurring r
       JOIN kanban_columns col ON r.column_id = col.id
       WHERE r.ativo = true
-        AND r.horario <= ${brHourMin}
         AND (r.ultimo_disparo IS NULL OR r.ultimo_disparo < ${todayStr}::date)
     `;
 
@@ -88,30 +100,46 @@ async function handleCheck() {
         continue;
       }
 
-      const prioEmoji = rec.prioridade === 'alta' ? '🔴 ALTA' : rec.prioridade === 'baixa' ? '🟢 BAIXA' : '🟡 MÉDIA';
+      const [recH, recM] = (rec.horario || '00:00').split(':').map(Number);
+      const recTotalMin = recH * 60 + recM;
+      const diffMin = currentTotalMin - recTotalMin;
 
-      // Disparar Notificacao Push com Prioridade e Descricao
-      const payload = JSON.stringify({
-        title: `⏰ [${prioEmoji}] ${rec.titulo}`,
-        body: rec.descricao ? `${rec.descricao}` : 'Hora de realizar a sua tarefa agendada!',
-        url: '/kanban',
-        tag: `recurring-${rec.id}`
-      });
+      // Se ainda NÃO chegou o horário agendado de hoje:
+      if (diffMin < 0) {
+        continue; // Aguarda chegar a hora
+      }
 
-      for (const sub of subs) {
-        try {
-          await webpush.sendNotification(
-            { endpoint: sub.endpoint, keys: sub.keys },
-            payload
-          );
-          notificationsSent++;
-        } catch (err) {
-          if (err.statusCode === 410 || err.statusCode === 404) {
-            await db`DELETE FROM push_subscriptions WHERE endpoint = ${sub.endpoint}`;
+      // SÓ dispara o push se estiver dentro da janela de tolerância de até 10 minutos após o horário exato
+      // Exemplo: se foi agendado para 09:30, só dispara entre 09:30 e 09:40
+      const withinWindow = diffMin >= 0 && diffMin <= 10;
+
+      if (withinWindow && subs.length > 0) {
+        const prioEmoji = rec.prioridade === 'alta' ? '🔴 ALTA' : rec.prioridade === 'baixa' ? '🟢 BAIXA' : '🟡 MÉDIA';
+
+        const payload = JSON.stringify({
+          title: `⏰ [${prioEmoji}] ${rec.titulo}`,
+          body: rec.descricao ? `${rec.descricao}` : 'Hora de realizar a sua tarefa agendada!',
+          url: '/kanban',
+          tag: `recurring-${rec.id}`
+        });
+
+        for (const sub of subs) {
+          try {
+            await webpush.sendNotification(
+              { endpoint: sub.endpoint, keys: sub.keys },
+              payload
+            );
+            notificationsSent++;
+          } catch (err) {
+            if (err.statusCode === 410 || err.statusCode === 404) {
+              await db`DELETE FROM push_subscriptions WHERE endpoint = ${sub.endpoint}`;
+            }
           }
         }
       }
 
+      // Quer tenha disparado (dentro da janela) ou já tenha expirado há muito tempo hoje,
+      // atualiza ultimo_disparo = HOJE para nunca mais disparar em horários aleatórios do dia
       await db`UPDATE reminders_recurring SET ultimo_disparo = ${todayStr}::date WHERE id = ${rec.id}`;
     }
 

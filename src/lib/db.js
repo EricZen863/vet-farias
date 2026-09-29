@@ -432,27 +432,39 @@ async function initChecklistDB(db) {
     )
   `;
 
-  // Seed default checklist templates if none exist
-  const countRes = await db`SELECT count(*) as count FROM checklist_templates WHERE ativo = true`;
-  if (parseInt(countRes[0].count) === 0) {
-    const defaults = [
-      { titulo: 'Conferir temperatura da geladeira de vacinas e medicamentos', periodo: 'manha', ordem: 1 },
-      { titulo: 'Alimentar, medicar e higienizar baias dos animais internados', periodo: 'manha', ordem: 2 },
-      { titulo: 'Conferência do caixa inicial e fundo de troco', periodo: 'manha', ordem: 3 },
-      { titulo: 'Ligar e calibrar equipamentos laboratoriais', periodo: 'manha', ordem: 4 },
-      { titulo: 'Reposição de materiais e insumos nos consultórios e centro cirúrgico', periodo: 'tarde', ordem: 5 },
-      { titulo: 'Limpeza geral e desinfecção da recepção e consultórios', periodo: 'tarde', ordem: 6 },
-      { titulo: 'Checagem e atualização dos prontuários e retornos', periodo: 'tarde', ordem: 7 },
-      { titulo: 'Descarte de lixo biológico e perfurocortantes conforme protocolo', periodo: 'noite', ordem: 8 },
-      { titulo: 'Fechamento de caixa e conferência de maquinetas do dia', periodo: 'noite', ordem: 9 },
-      { titulo: 'Verificar trincas, portas trancadas e ativar sistema de alarme', periodo: 'noite', ordem: 10 }
-    ];
+  // Controle para o seed NUNCA rodar mais de uma vez
+  await db`
+    CREATE TABLE IF NOT EXISTS checklist_seed_control (
+      id SERIAL PRIMARY KEY,
+      seeded BOOLEAN DEFAULT true
+    )
+  `;
 
-    for (const item of defaults) {
-      await db`
-        INSERT INTO checklist_templates (titulo, descricao, periodo, ordem, ativo)
-        VALUES (${item.titulo}, '', ${item.periodo}, ${item.ordem}, true)
-      `;
+  const seedControl = await db`SELECT count(*) as count FROM checklist_seed_control`;
+  if (parseInt(seedControl[0].count) === 0) {
+    await db`INSERT INTO checklist_seed_control (seeded) VALUES (true)`;
+
+    const countRes = await db`SELECT count(*) as count FROM checklist_templates`;
+    if (parseInt(countRes[0].count) === 0) {
+      const defaults = [
+        { titulo: 'Conferir temperatura da geladeira de vacinas e medicamentos', periodo: 'manha', ordem: 1 },
+        { titulo: 'Alimentar, medicar e higienizar baias dos animais internados', periodo: 'manha', ordem: 2 },
+        { titulo: 'Conferência do caixa inicial e fundo de troco', periodo: 'manha', ordem: 3 },
+        { titulo: 'Ligar e calibrar equipamentos laboratoriais', periodo: 'manha', ordem: 4 },
+        { titulo: 'Reposição de materiais e insumos nos consultórios e centro cirúrgico', periodo: 'tarde', ordem: 5 },
+        { titulo: 'Limpeza geral e desinfecção da recepção e consultórios', periodo: 'tarde', ordem: 6 },
+        { titulo: 'Checagem e atualização dos prontuários e retornos', periodo: 'tarde', ordem: 7 },
+        { titulo: 'Descarte de lixo biológico e perfurocortantes conforme protocolo', periodo: 'noite', ordem: 8 },
+        { titulo: 'Fechamento de caixa e conferência de maquinetas do dia', periodo: 'noite', ordem: 9 },
+        { titulo: 'Verificar trincas, portas trancadas e ativar sistema de alarme', periodo: 'noite', ordem: 10 }
+      ];
+
+      for (const item of defaults) {
+        await db`
+          INSERT INTO checklist_templates (titulo, descricao, periodo, ordem, ativo)
+          VALUES (${item.titulo}, '', ${item.periodo}, ${item.ordem}, true)
+        `;
+      }
     }
   }
 }
@@ -524,7 +536,8 @@ export async function createChecklistTemplate({ titulo, descricao, periodo, orde
 export async function deleteChecklistTemplate(id) {
   const db = getSQL();
   if (!db) return false;
-  await db`UPDATE checklist_templates SET ativo = false WHERE id = ${id}`;
+  // Exclusao definitiva do template (com cascade dos logs)
+  await db`DELETE FROM checklist_templates WHERE id = ${id}`;
   return true;
 }
 

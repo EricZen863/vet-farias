@@ -183,13 +183,30 @@ export default function ChecklistPage() {
   const handleDeleteTemplate = async (id, title) => {
     if (!confirm(`Deseja remover "${title}" da rotina diária?`)) return;
 
+    // Atualização otimista imediata
+    setChecklist(prev => prev.filter(i => i.template_id !== id));
+    setMetrics(prev => {
+      const removed = checklist.find(i => i.template_id === id);
+      const newTotal = Math.max(0, prev.total - 1);
+      const newDone = removed?.concluido ? Math.max(0, prev.concluidos - 1) : prev.concluidos;
+      return {
+        total: newTotal,
+        concluidos: newDone,
+        progresso: newTotal > 0 ? Math.round((newDone / newTotal) * 100) : 0
+      };
+    });
+
     try {
       const res = await fetch(`/api/checklist?id=${id}`, { method: 'DELETE' });
-      if (res.ok) {
+      if (!res.ok) {
+        const errData = await res.json();
+        alert('Erro ao excluir: ' + (errData.error || 'Falha no servidor'));
         loadChecklist(selectedDate);
       }
     } catch (err) {
       console.error('Erro ao excluir item:', err);
+      alert('Erro de conexão ao excluir item.');
+      loadChecklist(selectedDate);
     }
   };
 
@@ -492,11 +509,12 @@ export default function ChecklistPage() {
                         </div>
 
                         {/* Botões de Ação */}
-                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }} onClick={e => e.stopPropagation()}>
                           <button
                             type="button"
                             className="btn-secondary"
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setObsModalItem(item);
                               setObsText(item.observacao || '');
                             }}
@@ -509,7 +527,10 @@ export default function ChecklistPage() {
                           <button
                             type="button"
                             className="delete-btn"
-                            onClick={() => handleDeleteTemplate(item.template_id, item.titulo)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteTemplate(item.template_id, item.titulo);
+                            }}
                             title="Remover da rotina diária"
                             style={{ padding: '6px 8px' }}
                           >

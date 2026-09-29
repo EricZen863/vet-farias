@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../components/AuthProvider';
 import {
   FiCheckSquare, FiSquare, FiPlus, FiTrash2, FiChevronLeft, FiChevronRight,
-  FiCalendar, FiClock, FiEdit3, FiCheckCircle, FiSun, FiSunset, FiMoon, FiList, FiAlertCircle, FiMove
+  FiCalendar, FiClock, FiEdit3, FiCheckCircle, FiSun, FiSunset, FiMoon, FiList, FiAlertCircle, FiMove,
+  FiArrowUp, FiArrowDown
 } from 'react-icons/fi';
 
 function getTodayBrasilia() {
@@ -214,8 +215,9 @@ export default function ChecklistPage() {
     }
   };
 
-  const handleDrop = async (targetItem, targetPeriodo) => {
-    if (!draggedItem || draggedItem.template_id === targetItem.template_id) {
+  const handleDrop = async (targetItem, targetPeriodo, customSource = null) => {
+    const source = customSource || draggedItem;
+    if (!source || source.template_id === targetItem.template_id) {
       setDraggedItem(null);
       setDragOverItem(null);
       return;
@@ -223,7 +225,7 @@ export default function ChecklistPage() {
 
     // Criar nova lista reordenada
     const currentList = [...checklist];
-    const sourceIndex = currentList.findIndex(i => i.template_id === draggedItem.template_id);
+    const sourceIndex = currentList.findIndex(i => i.template_id === source.template_id);
     const targetIndex = currentList.findIndex(i => i.template_id === targetItem.template_id);
 
     if (sourceIndex === -1 || targetIndex === -1) {
@@ -268,6 +270,16 @@ export default function ChecklistPage() {
       console.error('Erro ao salvar nova ordem:', err);
       loadChecklist(selectedDate);
     }
+  };
+
+  const handleMoveStep = async (item, direction, periodItems) => {
+    const currentIdx = periodItems.findIndex(i => i.template_id === item.template_id);
+    if (currentIdx === -1) return;
+    const targetIdx = direction === 'up' ? currentIdx - 1 : currentIdx + 1;
+    if (targetIdx < 0 || targetIdx >= periodItems.length) return;
+
+    const targetItem = periodItems[targetIdx];
+    await handleDrop(targetItem, item.periodo || 'manha', item);
   };
 
   if (authLoading || !isAuthenticated) return null;
@@ -467,7 +479,7 @@ export default function ChecklistPage() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {items.map(item => {
+                  {items.map((item, itemIdx) => {
                     const isDone = !!item.concluido;
                     const concluidoHorario = item.concluido_em
                       ? new Date(item.concluido_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
@@ -617,6 +629,35 @@ export default function ChecklistPage() {
 
                         {/* Botões de Ação */}
                         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }} onClick={e => e.stopPropagation()}>
+                          {/* Botões Mover Ordem (Subir / Descer) */}
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            disabled={itemIdx === 0}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMoveStep(item, 'up', items);
+                            }}
+                            title="Subir posição"
+                            style={{ padding: '6px 8px', fontSize: '11px', opacity: itemIdx === 0 ? 0.3 : 1, cursor: itemIdx === 0 ? 'not-allowed' : 'pointer' }}
+                          >
+                            <FiArrowUp size={13} />
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            disabled={itemIdx === items.length - 1}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMoveStep(item, 'down', items);
+                            }}
+                            title="Descer posição"
+                            style={{ padding: '6px 8px', fontSize: '11px', opacity: itemIdx === items.length - 1 ? 0.3 : 1, cursor: itemIdx === items.length - 1 ? 'not-allowed' : 'pointer' }}
+                          >
+                            <FiArrowDown size={13} />
+                          </button>
+
                           <button
                             type="button"
                             className="btn-secondary"

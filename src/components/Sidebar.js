@@ -2,12 +2,13 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from './AuthProvider';
-import { FiHome, FiDroplet, FiScissors, FiMonitor, FiDollarSign, FiCreditCard, FiSettings, FiLogOut, FiMenu, FiX, FiCalendar, FiClock, FiLayout } from 'react-icons/fi';
+import { FiHome, FiDroplet, FiScissors, FiMonitor, FiDollarSign, FiCreditCard, FiSettings, FiLogOut, FiMenu, FiX, FiCalendar, FiClock, FiLayout, FiCheckSquare } from 'react-icons/fi';
 import { useState } from 'react';
 
 const adminMenuItems = [
   { href: '/', label: 'Dashboard', icon: FiHome },
   { href: '/kanban', label: 'Kanban & Lembretes', icon: FiLayout },
+  { href: '/checklist', label: 'Checklist Diário', icon: FiCheckSquare },
   { href: '/laboratorio', label: 'Laboratório', icon: FiDroplet },
   { href: '/volantes-cirurgioes', label: 'Volantes Cirurgiões', icon: FiScissors },
   { href: '/volantes-imagem', label: 'Volantes Imagem', icon: FiMonitor },

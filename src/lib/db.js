@@ -200,6 +200,7 @@ export async function initFolhaDePonto() {
   `;
 
   await initKanbanAndRemindersDB(db);
+  await initChecklistDB(db);
 
   folhaInitialized = true;
 }
@@ -402,6 +403,129 @@ export async function getPushSubscriptions() {
   const db = getSQL();
   if (!db) return [];
   return await db`SELECT * FROM push_subscriptions`;
+}
+
+async function initChecklistDB(db) {
+  await db`
+    CREATE TABLE IF NOT EXISTS checklist_templates (
+      id SERIAL PRIMARY KEY,
+      titulo VARCHAR(250) NOT NULL,
+      descricao TEXT,
+      periodo VARCHAR(50) DEFAULT 'manha',
+      ordem INTEGER DEFAULT 0,
+      ativo BOOLEAN DEFAULT true,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `;
+
+  await db`
+    CREATE TABLE IF NOT EXISTS checklist_logs (
+      id SERIAL PRIMARY KEY,
+      template_id INTEGER REFERENCES checklist_templates(id) ON DELETE CASCADE,
+      data DATE NOT NULL,
+      concluido BOOLEAN DEFAULT false,
+      concluido_em TIMESTAMP,
+      concluido_por VARCHAR(100),
+      observacao TEXT,
+      created_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE(template_id, data)
+    )
+  `;
+
+  // Seed default checklist templates if none exist
+  const countRes = await db`SELECT count(*) as count FROM checklist_templates WHERE ativo = true`;
+  if (parseInt(countRes[0].count) === 0) {
+    const defaults = [
+      { titulo: 'Conferir temperatura da geladeira de vacinas e medicamentos', periodo: 'manha', ordem: 1 },
+      { titulo: 'Alimentar, medicar e higienizar baias dos animais internados', periodo: 'manha', ordem: 2 },
+      { titulo: 'Conferência do caixa inicial e fundo de troco', periodo: 'manha', ordem: 3 },
+      { titulo: 'Ligar e calibrar equipamentos laboratoriais', periodo: 'manha', ordem: 4 },
+      { titulo: 'Reposição de materiais e insumos nos consultórios e centro cirúrgico', periodo: 'tarde', ordem: 5 },
+      { titulo: 'Limpeza geral e desinfecção da recepção e consultórios', periodo: 'tarde', ordem: 6 },
+      { titulo: 'Checagem e atualização dos prontuários e retornos', periodo: 'tarde', ordem: 7 },
+      { titulo: 'Descarte de lixo biológico e perfurocortantes conforme protocolo', periodo: 'noite', ordem: 8 },
+      { titulo: 'Fechamento de caixa e conferência de maquinetas do dia', periodo: 'noite', ordem: 9 },
+      { titulo: 'Verificar trincas, portas trancadas e ativar sistema de alarme', periodo: 'noite', ordem: 10 }
+    ];
+
+    for (const item of defaults) {
+      await db`
+        INSERT INTO checklist_templates (titulo, descricao, periodo, ordem, ativo)
+        VALUES (${item.titulo}, '', ${item.periodo}, ${item.ordem}, true)
+      `;
+    }
+  }
+}
+
+export async function getChecklistByDate(dateStr) {
+  const db = getSQL();
+  if (!db) return [];
+  
+  // Garantir que a tabela e seed existam
+  await initChecklistDB(db);
+
+  return await db`
+    SELECT 
+      t.id as template_id,
+      t.titulo,
+      t.descricao,
+      t.periodo,
+      t.ordem,
+      COALESCE(l.concluido, false) as concluido,
+      l.concluido_em,
+      l.concluido_por,
+      l.observacao,
+      l.id as log_id
+    FROM checklist_templates t
+    LEFT JOIN checklist_logs l ON l.template_id = t.id AND l.data = ${dateStr}::date
+    WHERE t.ativo = true
+    ORDER BY 
+      CASE t.periodo 
+        WHEN 'manha' THEN 1 
+        WHEN 'tarde' THEN 2 
+        WHEN 'noite' THEN 3 
+        ELSE 4 
+      END ASC,
+      t.ordem ASC, 
+      t.id ASC
+  `;
+}
+
+export async function toggleChecklistItem({ template_id, data, concluido, observacao, concluido_por }) {
+  const db = getSQL();
+  if (!db) return null;
+
+  const concluidoEm = concluido ? new Date().toISOString() : null;
+
+  const res = await db`
+    INSERT INTO checklist_logs (template_id, data, concluido, concluido_em, concluido_por, observacao)
+    VALUES (${template_id}, ${data}::date, ${concluido}, ${concluidoEm}, ${concluido_por || null}, ${observacao || null})
+    ON CONFLICT (template_id, data) DO UPDATE SET
+      concluido = EXCLUDED.concluido,
+      concluido_em = EXCLUDED.concluido_em,
+      concluido_por = EXCLUDED.concluido_por,
+      observacao = COALESCE(EXCLUDED.observacao, checklist_logs.observacao)
+    RETURNING *
+  `;
+  return res[0];
+}
+
+export async function createChecklistTemplate({ titulo, descricao, periodo, ordem }) {
+  const db = getSQL();
+  if (!db) return null;
+  const res = await db`
+    INSERT INTO checklist_templates (titulo, descricao, periodo, ordem, ativo)
+    VALUES (${titulo}, ${descricao || ''}, ${periodo || 'manha'}, ${ordem || 0}, true)
+    RETURNING *
+  `;
+  return res[0];
+}
+
+export async function deleteChecklistTemplate(id) {
+  const db = getSQL();
+  if (!db) return false;
+  await db`UPDATE checklist_templates SET ativo = false WHERE id = ${id}`;
+  return true;
 }
 
 export async function query(queryStr, params = []) {

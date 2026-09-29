@@ -4,6 +4,7 @@ import {
   toggleChecklistItem,
   createChecklistTemplate,
   deleteChecklistTemplate,
+  updateChecklistTemplatesOrder,
   isDBAvailable
 } from '@/lib/db';
 
@@ -79,6 +80,16 @@ export async function POST(request) {
       });
 
       return NextResponse.json(res, { status: 201 });
+    }
+
+    if (action === 'reorder') {
+      const { items } = body;
+      if (!Array.isArray(items)) {
+        return NextResponse.json({ error: 'items array é obrigatório' }, { status: 400 });
+      }
+
+      await updateChecklistTemplatesOrder(items);
+      return NextResponse.json({ success: true }, { status: 200 });
     }
 
     return NextResponse.json({ error: 'Ação não reconhecida' }, { status: 400 });

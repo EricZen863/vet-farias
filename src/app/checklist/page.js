@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../components/AuthProvider';
 import {
   FiCheckSquare, FiSquare, FiPlus, FiTrash2, FiChevronLeft, FiChevronRight,
-  FiCalendar, FiClock, FiEdit3, FiCheckCircle, FiSun, FiSunset, FiMoon, FiList, FiAlertCircle
+  FiCalendar, FiClock, FiEdit3, FiCheckCircle, FiSun, FiSunset, FiMoon, FiList, FiAlertCircle, FiMove
 } from 'react-icons/fi';
 
 function getTodayBrasilia() {
@@ -32,6 +32,10 @@ export default function ChecklistPage() {
   const [metrics, setMetrics] = useState({ total: 0, concluidos: 0, progresso: 0 });
   const [loading, setLoading] = useState(true);
   const [filterPeriodo, setFilterPeriodo] = useState('todos');
+
+  // Drag and Drop State
+  const [draggedItem, setDraggedItem] = useState(null);
+  const [dragOverItem, setDragOverItem] = useState(null);
 
   // Modais
   const [showAddModal, setShowAddModal] = useState(false);
@@ -206,6 +210,62 @@ export default function ChecklistPage() {
     } catch (err) {
       console.error('Erro ao excluir item:', err);
       alert('Erro de conexão ao excluir item.');
+      loadChecklist(selectedDate);
+    }
+  };
+
+  const handleDrop = async (targetItem, targetPeriodo) => {
+    if (!draggedItem || draggedItem.template_id === targetItem.template_id) {
+      setDraggedItem(null);
+      setDragOverItem(null);
+      return;
+    }
+
+    // Criar nova lista reordenada
+    const currentList = [...checklist];
+    const sourceIndex = currentList.findIndex(i => i.template_id === draggedItem.template_id);
+    const targetIndex = currentList.findIndex(i => i.template_id === targetItem.template_id);
+
+    if (sourceIndex === -1 || targetIndex === -1) {
+      setDraggedItem(null);
+      setDragOverItem(null);
+      return;
+    }
+
+    // Remover da posição original e inserir na nova posição
+    const [moved] = currentList.splice(sourceIndex, 1);
+    moved.periodo = targetPeriodo;
+    currentList.splice(targetIndex, 0, moved);
+
+    // Reatribuir a propriedade ordem sequencialmente
+    const updatedList = currentList.map((item, idx) => ({
+      ...item,
+      ordem: idx + 1
+    }));
+
+    // Atualização otimista imediata na interface
+    setChecklist(updatedList);
+    setDraggedItem(null);
+    setDragOverItem(null);
+
+    // Enviar a nova ordem para a API
+    try {
+      const payloadItems = updatedList.map(item => ({
+        id: item.template_id,
+        ordem: item.ordem,
+        periodo: item.periodo
+      }));
+
+      await fetch('/api/checklist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'reorder',
+          items: payloadItems
+        })
+      });
+    } catch (err) {
+      console.error('Erro ao salvar nova ordem:', err);
       loadChecklist(selectedDate);
     }
   };
@@ -413,9 +473,37 @@ export default function ChecklistPage() {
                       ? new Date(item.concluido_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
                       : null;
 
+                    const isDragging = draggedItem?.template_id === item.template_id;
+                    const isDragOver = dragOverItem?.template_id === item.template_id && !isDragging;
+
                     return (
                       <div
                         key={item.template_id}
+                        draggable
+                        onDragStart={(e) => {
+                          setDraggedItem(item);
+                          e.dataTransfer.effectAllowed = 'move';
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = 'move';
+                          if (dragOverItem?.template_id !== item.template_id) {
+                            setDragOverItem(item);
+                          }
+                        }}
+                        onDragLeave={() => {
+                          if (dragOverItem?.template_id === item.template_id) {
+                            setDragOverItem(null);
+                          }
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          handleDrop(item, periodoKey);
+                        }}
+                        onDragEnd={() => {
+                          setDraggedItem(null);
+                          setDragOverItem(null);
+                        }}
                         style={{
                           display: 'flex',
                           alignItems: 'flex-start',
@@ -423,17 +511,36 @@ export default function ChecklistPage() {
                           padding: '12px 14px',
                           borderRadius: 'var(--radius-sm)',
                           backgroundColor: isDone ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-input)',
-                          border: `1px solid ${isDone ? 'rgba(16, 185, 129, 0.3)' : 'var(--border)'}`,
-                          transition: 'all 0.2s ease',
-                          gap: '12px'
+                          border: isDragOver
+                            ? '2px dashed var(--primary-light)'
+                            : `1px solid ${isDone ? 'rgba(16, 185, 129, 0.3)' : 'var(--border)'}`,
+                          opacity: isDragging ? 0.35 : 1,
+                          transform: isDragOver ? 'scale(1.01)' : 'none',
+                          transition: 'all 0.15s ease',
+                          gap: '10px'
                         }}
                       >
+                        {/* Alça de Arrastar */}
+                        <div
+                          style={{
+                            cursor: isDragging ? 'grabbing' : 'grab',
+                            color: 'var(--text-muted)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '4px 2px',
+                            userSelect: 'none'
+                          }}
+                          title="Clique e arraste para reorganizar a ordem"
+                        >
+                          <FiMove size={15} />
+                        </div>
+
                         <div
                           onClick={() => handleToggle(item)}
                           style={{
                             display: 'flex',
                             alignItems: 'flex-start',
-                            gap: '12px',
+                            gap: '10px',
                             cursor: 'pointer',
                             flex: 1
                           }}

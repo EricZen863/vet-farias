@@ -546,6 +546,28 @@ export async function deleteChecklistTemplate(id) {
   return true;
 }
 
+export async function updateChecklistTemplatesOrder(items) {
+  const db = getSQL();
+  if (!db || !Array.isArray(items)) return false;
+
+  for (const item of items) {
+    if (item.periodo) {
+      await db`
+        UPDATE checklist_templates
+        SET ordem = ${item.ordem}, periodo = ${item.periodo}
+        WHERE id = ${item.id}
+      `;
+    } else {
+      await db`
+        UPDATE checklist_templates
+        SET ordem = ${item.ordem}
+        WHERE id = ${item.id}
+      `;
+    }
+  }
+  return true;
+}
+
 export async function query(queryStr, params = []) {
   const db = getSQL();
   if (!db) throw new Error('Database not available');

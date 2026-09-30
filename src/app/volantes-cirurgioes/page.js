@@ -4,7 +4,7 @@ import { useAuth } from '../../components/AuthProvider';
 import MonthSelector from '../../components/MonthSelector';
 import { getMonthKey } from '../../lib/storage';
 import Link from 'next/link';
-import { FiTrash2, FiBarChart2 } from 'react-icons/fi';
+import { FiTrash2, FiBarChart2, FiCopy } from 'react-icons/fi';
 
 export default function VolantesCirurgioesPage() {
   const { isAuthenticated, loading } = useAuth();
@@ -13,6 +13,8 @@ export default function VolantesCirurgioesPage() {
   const [nome, setNome] = useState('');
   const [procedimento, setProcedimento] = useState('');
   const [valor, setValor] = useState('');
+  const [chavePix, setChavePix] = useState('');
+  const [copiedId, setCopiedId] = useState(null);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -20,16 +22,25 @@ export default function VolantesCirurgioesPage() {
       .then(r => r.json()).then(setRecords).catch(() => {});
   }, [isAuthenticated, monthKey]);
 
+  // Auto-fill chave PIX when nome changes (look up from existing records)
+  useEffect(() => {
+    if (!nome) return;
+    const existing = records.find(r => r.nome.toLowerCase() === nome.toLowerCase() && r.chave_pix);
+    if (existing) {
+      setChavePix(existing.chave_pix);
+    }
+  }, [nome, records]);
+
   const addRecord = async () => {
     if (!nome || !procedimento || !valor) return;
     try {
       const res = await fetch('/api/records', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ module: 'cirurgioes', month: monthKey, nome, procedimento, valor: parseFloat(valor) }),
+        body: JSON.stringify({ module: 'cirurgioes', month: monthKey, nome, procedimento, valor: parseFloat(valor), chave_pix: chavePix }),
       });
       const newRecord = await res.json();
       setRecords([...records, newRecord]);
-      setNome(''); setProcedimento(''); setValor('');
+      setNome(''); setProcedimento(''); setValor(''); setChavePix('');
     } catch {}
   };
 
@@ -51,6 +62,12 @@ export default function VolantesCirurgioesPage() {
     } catch {}
   };
 
+  const copyPix = (pix, id) => {
+    navigator.clipboard.writeText(pix);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   const total = records.reduce((sum, r) => sum + r.valor, 0);
   const formatCurrency = (val) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   if (loading || !isAuthenticated) return null;
@@ -65,6 +82,7 @@ export default function VolantesCirurgioesPage() {
           <div className="form-group"><label className="form-label">Nome do Cirurgião</label><input type="text" className="form-input" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome do cirurgião" /></div>
           <div className="form-group"><label className="form-label">Procedimento</label><input type="text" className="form-input" value={procedimento} onChange={(e) => setProcedimento(e.target.value)} placeholder="Procedimento realizado" /></div>
           <div className="form-group" style={{ minWidth: '140px' }}><label className="form-label">Valor (R$)</label><input type="number" className="form-input" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="0,00" step="0.01" /></div>
+          <div className="form-group"><label className="form-label">Chave PIX</label><input type="text" className="form-input" value={chavePix} onChange={(e) => setChavePix(e.target.value)} placeholder="CPF, e-mail, telefone ou chave" /></div>
           <button className="btn-primary" onClick={addRecord}>Adicionar</button>
         </div>
       </div>
@@ -74,13 +92,24 @@ export default function VolantesCirurgioesPage() {
         {records.length === 0 ? (<div className="no-data">Nenhum registro neste mês</div>) : (
           <div className="table-wrapper">
             <table>
-              <thead><tr><th>Data</th><th>Cirurgião</th><th>Procedimento</th><th>Valor</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th>Data</th><th>Cirurgião</th><th>Procedimento</th><th>Valor</th><th>Chave PIX</th><th>Status</th><th></th></tr></thead>
               <tbody>{records.map((r) => (
                 <tr key={r.id}>
                   <td>{new Date(r.data).toLocaleDateString('pt-BR')}</td>
                   <td>{r.nome}</td>
                   <td>{r.procedimento}</td>
                   <td>{formatCurrency(r.valor)}</td>
+                  <td>
+                    {r.chave_pix ? (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '0.85em', opacity: 0.9, maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.chave_pix}>{r.chave_pix}</span>
+                        <button onClick={() => copyPix(r.chave_pix, r.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: copiedId === r.id ? '#22c55e' : 'inherit', padding: '2px' }} title="Copiar PIX">
+                          <FiCopy size={14} />
+                        </button>
+                        {copiedId === r.id && <span style={{ fontSize: '0.75em', color: '#22c55e' }}>Copiado!</span>}
+                      </span>
+                    ) : <span style={{ opacity: 0.4 }}>—</span>}
+                  </td>
                   <td>
                     <button
                       onClick={() => toggleStatus(r.id, r.status)}

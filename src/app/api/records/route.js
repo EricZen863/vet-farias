@@ -32,7 +32,7 @@ export async function GET(request) {
     return NextResponse.json(rows.map(r => ({
       id: r.id, data: r.created_at, nome: r.nome,
       procedimento: r.procedimento, valor: parseFloat(r.valor),
-      status: r.status || 'FALTA'
+      status: r.status || 'FALTA', chave_pix: r.chave_pix || ''
     })));
   }
 
@@ -41,7 +41,7 @@ export async function GET(request) {
     return NextResponse.json(rows.map(r => ({
       id: r.id, data: r.created_at, nome: r.nome,
       exame: r.exame, valor: parseFloat(r.valor),
-      status: r.status || 'FALTA'
+      status: r.status || 'FALTA', chave_pix: r.chave_pix || ''
     })));
   }
 
@@ -78,29 +78,29 @@ export async function POST(request) {
 
   if (module === 'cirurgioes') {
     const rows = await sql`
-      INSERT INTO cirurgioes_records (month_key, nome, procedimento, valor, status)
-      VALUES (${month}, ${body.nome}, ${body.procedimento}, ${body.valor}, 'FALTA')
+      INSERT INTO cirurgioes_records (month_key, nome, procedimento, valor, status, chave_pix)
+      VALUES (${month}, ${body.nome}, ${body.procedimento}, ${body.valor}, 'FALTA', ${body.chave_pix || ''})
       RETURNING *
     `;
     const r = rows[0];
     return NextResponse.json({
       id: r.id, data: r.created_at, nome: r.nome,
       procedimento: r.procedimento, valor: parseFloat(r.valor),
-      status: r.status || 'FALTA'
+      status: r.status || 'FALTA', chave_pix: r.chave_pix || ''
     });
   }
 
   if (module === 'imagem') {
     const rows = await sql`
-      INSERT INTO imagem_records (month_key, nome, exame, valor, status)
-      VALUES (${month}, ${body.nome}, ${body.exame}, ${body.valor}, 'FALTA')
+      INSERT INTO imagem_records (month_key, nome, exame, valor, status, chave_pix)
+      VALUES (${month}, ${body.nome}, ${body.exame}, ${body.valor}, 'FALTA', ${body.chave_pix || ''})
       RETURNING *
     `;
     const r = rows[0];
     return NextResponse.json({
       id: r.id, data: r.created_at, nome: r.nome,
       exame: r.exame, valor: parseFloat(r.valor),
-      status: r.status || 'FALTA'
+      status: r.status || 'FALTA', chave_pix: r.chave_pix || ''
     });
   }
 

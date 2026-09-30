@@ -5,7 +5,7 @@ import MonthSelector from '../../components/MonthSelector';
 import Autocomplete from '../../components/Autocomplete';
 import { getMonthKey } from '../../lib/storage';
 import Link from 'next/link';
-import { FiTrash2, FiBarChart2 } from 'react-icons/fi';
+import { FiTrash2, FiBarChart2, FiCopy } from 'react-icons/fi';
 const EXAMES_IMAGEM = ['Ultrassonografia abdominal', 'Raio X', 'Eletrocardiograma', 'Ecocardiograma'];
 
 export default function VolantesImagemPage() {
@@ -15,6 +15,8 @@ export default function VolantesImagemPage() {
   const [nome, setNome] = useState('');
   const [exame, setExame] = useState('');
   const [valor, setValor] = useState('');
+  const [chavePix, setChavePix] = useState('');
+  const [copiedId, setCopiedId] = useState(null);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -22,16 +24,25 @@ export default function VolantesImagemPage() {
       .then(r => r.json()).then(setRecords).catch(() => {});
   }, [isAuthenticated, monthKey]);
 
+  // Auto-fill chave PIX when nome changes (look up from existing records)
+  useEffect(() => {
+    if (!nome) return;
+    const existing = records.find(r => r.nome.toLowerCase() === nome.toLowerCase() && r.chave_pix);
+    if (existing) {
+      setChavePix(existing.chave_pix);
+    }
+  }, [nome, records]);
+
   const addRecord = async () => {
     if (!nome || !exame || !valor) return;
     try {
       const res = await fetch('/api/records', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ module: 'imagem', month: monthKey, nome, exame, valor: parseFloat(valor) }),
+        body: JSON.stringify({ module: 'imagem', month: monthKey, nome, exame, valor: parseFloat(valor), chave_pix: chavePix }),
       });
       const newRecord = await res.json();
       setRecords([...records, newRecord]);
-      setNome(''); setExame(''); setValor('');
+      setNome(''); setExame(''); setValor(''); setChavePix('');
     } catch {}
   };
 
@@ -53,6 +64,12 @@ export default function VolantesImagemPage() {
     } catch {}
   };
 
+  const copyPix = (pix, id) => {
+    navigator.clipboard.writeText(pix);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   const total = records.reduce((sum, r) => sum + r.valor, 0);
   const formatCurrency = (val) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   if (loading || !isAuthenticated) return null;
@@ -67,6 +84,7 @@ export default function VolantesImagemPage() {
           <div className="form-group"><label className="form-label">Nome do Profissional</label><input type="text" className="form-input" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome do volante" /></div>
           <div className="form-group"><label className="form-label">Exame de Imagem</label><Autocomplete options={EXAMES_IMAGEM} value={exame} onChange={setExame} placeholder="Digite 3 letras para buscar..." /></div>
           <div className="form-group" style={{ minWidth: '140px' }}><label className="form-label">Valor (R$)</label><input type="number" className="form-input" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="0,00" step="0.01" /></div>
+          <div className="form-group"><label className="form-label">Chave PIX</label><input type="text" className="form-input" value={chavePix} onChange={(e) => setChavePix(e.target.value)} placeholder="CPF, e-mail, telefone ou chave" /></div>
           <button className="btn-primary" onClick={addRecord}>Adicionar</button>
         </div>
       </div>
@@ -76,13 +94,24 @@ export default function VolantesImagemPage() {
         {records.length === 0 ? (<div className="no-data">Nenhum registro neste mês</div>) : (
           <div className="table-wrapper">
             <table>
-              <thead><tr><th>Data</th><th>Profissional</th><th>Exame</th><th>Valor</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th>Data</th><th>Profissional</th><th>Exame</th><th>Valor</th><th>Chave PIX</th><th>Status</th><th></th></tr></thead>
               <tbody>{records.map((r) => (
                 <tr key={r.id}>
                   <td>{new Date(r.data).toLocaleDateString('pt-BR')}</td>
                   <td>{r.nome}</td>
                   <td>{r.exame}</td>
                   <td>{formatCurrency(r.valor)}</td>
+                  <td>
+                    {r.chave_pix ? (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '0.85em', opacity: 0.9, maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.chave_pix}>{r.chave_pix}</span>
+                        <button onClick={() => copyPix(r.chave_pix, r.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: copiedId === r.id ? '#22c55e' : 'inherit', padding: '2px' }} title="Copiar PIX">
+                          <FiCopy size={14} />
+                        </button>
+                        {copiedId === r.id && <span style={{ fontSize: '0.75em', color: '#22c55e' }}>Copiado!</span>}
+                      </span>
+                    ) : <span style={{ opacity: 0.4 }}>—</span>}
+                  </td>
                   <td>
                     <button
                       onClick={() => toggleStatus(r.id, r.status)}

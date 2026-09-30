@@ -75,6 +75,7 @@ export async function initDB() {
   `;
 
   await db`ALTER TABLE cirurgioes_records ADD COLUMN IF NOT EXISTS status VARCHAR(10) DEFAULT 'FALTA'`;
+  await db`ALTER TABLE cirurgioes_records ADD COLUMN IF NOT EXISTS chave_pix VARCHAR(300) DEFAULT ''`;
 
   await db`
     CREATE TABLE IF NOT EXISTS imagem_records (
@@ -89,6 +90,7 @@ export async function initDB() {
   `;
 
   await db`ALTER TABLE imagem_records ADD COLUMN IF NOT EXISTS status VARCHAR(10) DEFAULT 'FALTA'`;
+  await db`ALTER TABLE imagem_records ADD COLUMN IF NOT EXISTS chave_pix VARCHAR(300) DEFAULT ''`;
 
   await db`
     CREATE TABLE IF NOT EXISTS gastos_records (

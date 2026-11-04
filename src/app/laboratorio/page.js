@@ -5,9 +5,9 @@ import MonthSelector from '../../components/MonthSelector';
 import Autocomplete from '../../components/Autocomplete';
 import ExcelUploader from '../../components/ExcelUploader';
 import { getMonthKey } from '../../lib/storage';
-import { parseExcelFile } from '../../lib/excelParser';
+import { parseExcelFile, exportCatalogToExcel } from '../../lib/excelParser';
 import Link from 'next/link';
-import { FiTrash2, FiBarChart2, FiPlus, FiInfo, FiRepeat } from 'react-icons/fi';
+import { FiTrash2, FiBarChart2, FiPlus, FiInfo, FiRepeat, FiDownload } from 'react-icons/fi';
 
 export default function LaboratorioPage() {
   const { isAuthenticated, loading } = useAuth();
@@ -220,10 +220,31 @@ export default function LaboratorioPage() {
               </div>
 
               <div className="maquineta-body" style={{ flex: 1 }}>
-                <div style={{ marginBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '16px' }}>
                   <ExcelUploader onUpload={(file) => handleExcelUpload(file, lab.id)} label="Upload Tabela" />
                   {lab.catalogo?.length > 0 && (
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '12px', marginTop: '8px' }}>📋 {lab.catalogo.length} coletas carregadas no catálogo</p>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => exportCatalogToExcel(lab.catalogo, lab.nome)}
+                      title="Baixar planilha Excel com todos os exames cadastrados deste laboratório"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '8px 14px',
+                        fontSize: '12px',
+                        fontWeight: 500,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <FiDownload size={14} /> Baixar Tabela Excel ({lab.catalogo.length} exames)
+                    </button>
+                  )}
+                  {lab.catalogo?.length > 0 && (
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '12px', marginLeft: 'auto' }}>
+                      📋 {lab.catalogo.length} coletas no catálogo
+                    </span>
                   )}
                 </div>
 

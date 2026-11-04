@@ -73,13 +73,32 @@ export async function POST(request) {
     return NextResponse.json({ success: true });
   }
 
+  if (action === 'updateData') {
+    await sql`UPDATE maquinetas_records SET data = ${body.data} WHERE id = ${body.id}`;
+    return NextResponse.json({ success: true });
+  }
+
   if (action === 'updateNota') {
     await sql`UPDATE maquinetas_records SET nota = ${body.nota} WHERE id = ${body.id}`;
     return NextResponse.json({ success: true });
   }
 
+  if (action === 'updateValor') {
+    await sql`UPDATE maquinetas_records SET valor = ${body.valor} WHERE id = ${body.id}`;
+    return NextResponse.json({ success: true });
+  }
+
   if (action === 'updateValorProduto') {
     await sql`UPDATE maquinetas_records SET valor_produto = ${body.valor_produto} WHERE id = ${body.id}`;
+    return NextResponse.json({ success: true });
+  }
+
+  if (action === 'updateRecord') {
+    const { id, data, nota, valor, valor_produto } = body;
+    if (data !== undefined) await sql`UPDATE maquinetas_records SET data = ${data} WHERE id = ${id}`;
+    if (nota !== undefined) await sql`UPDATE maquinetas_records SET nota = ${nota} WHERE id = ${id}`;
+    if (valor !== undefined) await sql`UPDATE maquinetas_records SET valor = ${valor} WHERE id = ${id}`;
+    if (valor_produto !== undefined) await sql`UPDATE maquinetas_records SET valor_produto = ${valor_produto} WHERE id = ${id}`;
     return NextResponse.json({ success: true });
   }
 

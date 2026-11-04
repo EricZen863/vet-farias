@@ -74,28 +74,96 @@ export default function MaquinetasPage() {
     } catch {}
   };
 
-  const updateValorProduto = async (machineId, recordId, valor_produto) => {
-    const vp = parseFloat(valor_produto) || 0;
-    await fetch('/api/maquinetas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'updateValorProduto', id: recordId, valor_produto: vp }) });
-    setRecords(prev => ({ ...prev, [machineId]: (prev[machineId] || []).map(r => r.id === recordId ? { ...r, valor_produto: vp } : r) }));
-  };
-
   const deleteRecord = async (machineId, recordId) => {
     await fetch('/api/maquinetas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'deleteRecord', id: recordId }) });
     setRecords(prev => ({ ...prev, [machineId]: (prev[machineId] || []).filter(r => r.id !== recordId) }));
   };
 
-  const updateNota = async (machineId, recordId, nota) => {
-    await fetch('/api/maquinetas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'updateNota', id: recordId, nota }) });
-    setRecords(prev => ({ ...prev, [machineId]: (prev[machineId] || []).map(r => r.id === recordId ? { ...r, nota } : r) }));
+  // Atualização direta de campos
+  const handleFieldChange = (machineId, recordId, field, value) => {
+    setRecords(prev => ({
+      ...prev,
+      [machineId]: (prev[machineId] || []).map(r => r.id === recordId ? { ...r, [field]: value } : r)
+    }));
   };
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    // dateStr is YYYY-MM-DD, convert to DD/MM/YYYY
-    const parts = dateStr.split('-');
-    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    return dateStr;
+  const handleServicoChange = (machineId, recordId, servicoVal) => {
+    setRecords(prev => ({
+      ...prev,
+      [machineId]: (prev[machineId] || []).map(r => {
+        if (r.id !== recordId) return r;
+        const prod = parseFloat(r.valor_produto) || 0;
+        const s = servicoVal === '' ? '' : (parseFloat(servicoVal) || 0);
+        const newTotal = s === '' ? prod : parseFloat((prod + s).toFixed(2));
+        return { ...r, valor: newTotal, _servicoInput: servicoVal };
+      })
+    }));
+  };
+
+  const updateData = async (machineId, recordId, data) => {
+    setRecords(prev => ({
+      ...prev,
+      [machineId]: (prev[machineId] || []).map(r => r.id === recordId ? { ...r, data } : r)
+    }));
+    await fetch('/api/maquinetas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'updateData', id: recordId, data })
+    });
+  };
+
+  const updateNota = async (machineId, recordId, nota) => {
+    setRecords(prev => ({
+      ...prev,
+      [machineId]: (prev[machineId] || []).map(r => r.id === recordId ? { ...r, nota } : r)
+    }));
+    await fetch('/api/maquinetas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'updateNota', id: recordId, nota })
+    });
+  };
+
+  const saveValorTotal = async (machineId, recordId, rawVal) => {
+    const v = parseFloat(rawVal) || 0;
+    setRecords(prev => ({
+      ...prev,
+      [machineId]: (prev[machineId] || []).map(r => r.id === recordId ? { ...r, valor: v, _servicoInput: undefined } : r)
+    }));
+    await fetch('/api/maquinetas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'updateValor', id: recordId, valor: v })
+    });
+  };
+
+  const saveValorProduto = async (machineId, recordId, rawVal) => {
+    const vp = parseFloat(rawVal) || 0;
+    setRecords(prev => ({
+      ...prev,
+      [machineId]: (prev[machineId] || []).map(r => r.id === recordId ? { ...r, valor_produto: vp } : r)
+    }));
+    await fetch('/api/maquinetas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'updateValorProduto', id: recordId, valor_produto: vp })
+    });
+  };
+
+  const saveServico = async (machineId, recordId, rawServico) => {
+    const s = parseFloat(rawServico) || 0;
+    const currentRec = (records[machineId] || []).find(r => r.id === recordId);
+    const prod = currentRec ? (parseFloat(currentRec.valor_produto) || 0) : 0;
+    const newTotal = parseFloat((prod + s).toFixed(2));
+    setRecords(prev => ({
+      ...prev,
+      [machineId]: (prev[machineId] || []).map(r => r.id === recordId ? { ...r, valor: newTotal, _servicoInput: undefined } : r)
+    }));
+    await fetch('/api/maquinetas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'updateValor', id: recordId, valor: newTotal })
+    });
   };
 
   const updateObs = async (machineId, texto) => {
@@ -125,8 +193,8 @@ export default function MaquinetasPage() {
       <div className="maquineta-grid">
         {machines.map((m, index) => {
           const mRecords = records[m.id] || [];
-          const total = mRecords.reduce((sum, r) => sum + r.valor, 0);
-          const totalProdutos = mRecords.reduce((sum, r) => sum + (r.valor_produto || 0), 0);
+          const total = mRecords.reduce((sum, r) => sum + (parseFloat(r.valor) || 0), 0);
+          const totalProdutos = mRecords.reduce((sum, r) => sum + (parseFloat(r.valor_produto) || 0), 0);
           const totalServicos = Math.max(0, total - totalProdutos);
           const maximo = m.maximo || 0;
           const percent = maximo > 0 ? Math.min((total / maximo) * 100, 100) : 0;
@@ -188,42 +256,163 @@ export default function MaquinetasPage() {
                   <button className="btn-primary" onClick={() => addRecord(m.id)} style={{ padding: '8px 16px', fontSize: '13px' }}>+</button>
                 </div>
 
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    💡 Dica: Todas as colunas abaixo podem ser editadas diretamente na tabela.
+                  </span>
+                </div>
+
                 {mRecords.length === 0 ? (
                   <div className="no-data" style={{ padding: '20px', fontSize: '13px' }}>Nenhum recebimento</div>
                 ) : (
-                  <div className="table-wrapper" style={{ marginTop: 0, minHeight: '80px', maxHeight: 'none', height: '200px', overflowY: 'auto', resize: 'vertical', paddingBottom: '8px', borderBottom: '3px solid var(--border)', cursor: 'ns-resize' }}>
+                  <div className="table-wrapper" style={{ marginTop: 0, minHeight: '80px', maxHeight: 'none', height: '220px', overflowY: 'auto', resize: 'vertical', paddingBottom: '8px', borderBottom: '3px solid var(--border)', cursor: 'ns-resize' }}>
                     <table>
-                      <thead><tr><th>Data</th><th>Nota</th><th>Total Dia</th><th>Prod.</th><th>Serviço</th><th></th></tr></thead>
-                      <tbody>{mRecords.map((r) => {
-                        const servico = Math.max(0, r.valor - (r.valor_produto || 0));
-                        return (
-                        <tr key={r.id}>
-                          <td style={{ fontSize: '12px' }}>{formatDate(r.data)}</td>
-                          <td style={{ fontSize: '12px', padding: '4px' }}>
-                            <select
-                              value={r.nota}
-                              onChange={(e) => updateNota(m.id, r.id, e.target.value)}
-                              style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', border: '1px solid var(--border)', borderRadius: '4px', padding: '3px 6px', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}
-                            >
-                              <option>N/A</option>
-                              <option>OK</option>
-                              <option>Falta</option>
-                            </select>
-                          </td>
-                          <td style={{ fontSize: '12px' }}>{formatCurrency(r.valor)}</td>
-                          <td style={{ fontSize: '12px', padding: '4px' }}>
-                            <input
-                              type="number" step="0.01"
-                              value={r.valor_produto || 0}
-                              onChange={(e) => updateValorProduto(m.id, r.id, e.target.value)}
-                              style={{ background: 'var(--bg-input)', color: '#f59e0b', border: '1px solid var(--border)', borderRadius: '4px', padding: '3px 6px', fontSize: '12px', width: '80px', fontFamily: 'inherit' }}
-                            />
-                          </td>
-                          <td style={{ fontSize: '12px', color: '#4ade80', fontWeight: 600 }}>{formatCurrency(servico)}</td>
-                          <td><button className="delete-btn" onClick={() => deleteRecord(m.id, r.id)}><FiTrash2 size={12} /></button></td>
+                      <thead>
+                        <tr>
+                          <th>Data</th>
+                          <th>Nota</th>
+                          <th>Total Dia</th>
+                          <th>Prod.</th>
+                          <th>Serviço</th>
+                          <th></th>
                         </tr>
-                        );
-                      })}</tbody>
+                      </thead>
+                      <tbody>
+                        {mRecords.map((r) => {
+                          const totalVal = parseFloat(r.valor) || 0;
+                          const prodVal = parseFloat(r.valor_produto) || 0;
+                          const calculatedServico = Math.max(0, parseFloat((totalVal - prodVal).toFixed(2)));
+                          const servicoDisplay = r._servicoInput !== undefined ? r._servicoInput : calculatedServico;
+
+                          return (
+                            <tr key={r.id}>
+                              {/* DATA */}
+                              <td style={{ fontSize: '12px', padding: '4px' }}>
+                                <input
+                                  type="date"
+                                  value={r.data || ''}
+                                  onChange={(e) => updateData(m.id, r.id, e.target.value)}
+                                  style={{
+                                    background: 'var(--bg-input)',
+                                    color: 'var(--text)',
+                                    border: '1px solid var(--border)',
+                                    borderRadius: '4px',
+                                    padding: '3px 6px',
+                                    fontSize: '11px',
+                                    width: '115px',
+                                    fontFamily: 'inherit',
+                                    cursor: 'pointer'
+                                  }}
+                                  title="Clique para editar a data"
+                                />
+                              </td>
+
+                              {/* NOTA */}
+                              <td style={{ fontSize: '12px', padding: '4px' }}>
+                                <select
+                                  value={r.nota || 'N/A'}
+                                  onChange={(e) => updateNota(m.id, r.id, e.target.value)}
+                                  style={{
+                                    background: 'var(--bg-input)',
+                                    color: r.nota === 'OK' ? '#4ade80' : r.nota === 'Falta' ? '#f87171' : 'var(--text-secondary)',
+                                    border: '1px solid var(--border)',
+                                    borderRadius: '4px',
+                                    padding: '3px 6px',
+                                    fontSize: '12px',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    fontFamily: 'inherit'
+                                  }}
+                                  title="Editar status de nota fiscal"
+                                >
+                                  <option value="N/A" style={{ color: 'var(--text)' }}>N/A</option>
+                                  <option value="OK" style={{ color: '#4ade80' }}>OK</option>
+                                  <option value="Falta" style={{ color: '#f87171' }}>Falta</option>
+                                </select>
+                              </td>
+
+                              {/* TOTAL DIA */}
+                              <td style={{ fontSize: '12px', padding: '4px' }}>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={r.valor !== undefined ? r.valor : ''}
+                                  onChange={(e) => handleFieldChange(m.id, r.id, 'valor', e.target.value)}
+                                  onBlur={(e) => saveValorTotal(m.id, r.id, e.target.value)}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                  style={{
+                                    background: 'var(--bg-input)',
+                                    color: 'var(--primary-light)',
+                                    fontWeight: 600,
+                                    border: '1px solid var(--border)',
+                                    borderRadius: '4px',
+                                    padding: '3px 6px',
+                                    fontSize: '12px',
+                                    width: '80px',
+                                    fontFamily: 'inherit'
+                                  }}
+                                  title="Editar Total do Dia (ajusta Serviço automaticamente)"
+                                />
+                              </td>
+
+                              {/* PROD. */}
+                              <td style={{ fontSize: '12px', padding: '4px' }}>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={r.valor_produto !== undefined ? r.valor_produto : ''}
+                                  onChange={(e) => handleFieldChange(m.id, r.id, 'valor_produto', e.target.value)}
+                                  onBlur={(e) => saveValorProduto(m.id, r.id, e.target.value)}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                  style={{
+                                    background: 'var(--bg-input)',
+                                    color: '#f59e0b',
+                                    fontWeight: 600,
+                                    border: '1px solid var(--border)',
+                                    borderRadius: '4px',
+                                    padding: '3px 6px',
+                                    fontSize: '12px',
+                                    width: '80px',
+                                    fontFamily: 'inherit'
+                                  }}
+                                  title="Editar valor de Produtos (ajusta Serviço automaticamente)"
+                                />
+                              </td>
+
+                              {/* SERVIÇO */}
+                              <td style={{ fontSize: '12px', padding: '4px' }}>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={servicoDisplay}
+                                  onChange={(e) => handleServicoChange(m.id, r.id, e.target.value)}
+                                  onBlur={(e) => saveServico(m.id, r.id, e.target.value)}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                  style={{
+                                    background: 'var(--bg-input)',
+                                    color: '#4ade80',
+                                    fontWeight: 600,
+                                    border: '1px solid var(--border)',
+                                    borderRadius: '4px',
+                                    padding: '3px 6px',
+                                    fontSize: '12px',
+                                    width: '80px',
+                                    fontFamily: 'inherit'
+                                  }}
+                                  title="Editar valor de Serviço (ajusta o Total Dia automaticamente)"
+                                />
+                              </td>
+
+                              {/* EXCLUIR */}
+                              <td>
+                                <button className="delete-btn" onClick={() => deleteRecord(m.id, r.id)} title="Excluir recebimento">
+                                  <FiTrash2 size={12} />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
                     </table>
                   </div>
                 )}

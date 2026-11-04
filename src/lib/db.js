@@ -58,9 +58,13 @@ export async function initDB() {
       prazo_entrega VARCHAR(100),
       repasse DECIMAL(10,2) DEFAULT 0,
       lucro DECIMAL(10,2) DEFAULT 0,
+      tipo VARCHAR(10) DEFAULT 'normal',
       created_at TIMESTAMP DEFAULT NOW()
     )
   `;
+
+  // Tipo do pedido: 'normal' (clínica paga ao laboratório) ou 'plano' (plano de saúde animal, sem custo para a clínica)
+  await db`ALTER TABLE lab_records ADD COLUMN IF NOT EXISTS tipo VARCHAR(10) DEFAULT 'normal'`;
 
   await db`
     CREATE TABLE IF NOT EXISTS cirurgioes_records (
@@ -577,5 +581,3 @@ export async function query(queryStr, params = []) {
 }
 
 export { getSQL };
-
-

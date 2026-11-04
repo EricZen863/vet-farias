@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { initDB, getSQL, isDBAvailable } from '../../../lib/db';
 
+// Pedidos de laboratório: 'normal' (clínica paga) ou 'plano' (plano de saúde animal, sem custo)
+const LAB_TIPOS = ['normal', 'plano'];
+const normalizeLabTipo = (tipo) => (LAB_TIPOS.includes(tipo) ? tipo : 'normal');
+
 export async function GET(request) {
   if (!isDBAvailable()) return NextResponse.json([]);
   await initDB();
@@ -16,14 +20,16 @@ export async function GET(request) {
       return NextResponse.json(rows.map(r => ({
         id: r.id, data: r.created_at, coleta: r.coleta,
         precoCusto: parseFloat(r.preco_custo), prazoEntrega: r.prazo_entrega,
-        repasse: parseFloat(r.repasse), lucro: parseFloat(r.lucro)
+        repasse: parseFloat(r.repasse), lucro: parseFloat(r.lucro),
+        tipo: normalizeLabTipo(r.tipo)
       })));
     }
     const rows = await sql`SELECT lr.*, l.nome as lab_nome FROM lab_records lr LEFT JOIN labs l ON lr.lab_id = l.id WHERE lr.month_key = ${month} ORDER BY lr.created_at`;
     return NextResponse.json(rows.map(r => ({
       id: r.id, data: r.created_at, coleta: r.coleta,
       precoCusto: parseFloat(r.preco_custo), prazoEntrega: r.prazo_entrega,
-      repasse: parseFloat(r.repasse), lucro: parseFloat(r.lucro), labNome: r.lab_nome
+      repasse: parseFloat(r.repasse), lucro: parseFloat(r.lucro), labNome: r.lab_nome,
+      tipo: normalizeLabTipo(r.tipo)
     })));
   }
 
@@ -63,16 +69,18 @@ export async function POST(request) {
   const { module, month } = body;
 
   if (module === 'lab') {
+    const tipo = normalizeLabTipo(body.tipo);
     const rows = await sql`
-      INSERT INTO lab_records (lab_id, month_key, coleta, preco_custo, prazo_entrega, repasse, lucro)
-      VALUES (${body.labId}, ${month}, ${body.coleta}, ${body.precoCusto}, ${body.prazoEntrega}, ${body.repasse}, ${body.lucro})
+      INSERT INTO lab_records (lab_id, month_key, coleta, preco_custo, prazo_entrega, repasse, lucro, tipo)
+      VALUES (${body.labId}, ${month}, ${body.coleta}, ${body.precoCusto}, ${body.prazoEntrega}, ${body.repasse}, ${body.lucro}, ${tipo})
       RETURNING *
     `;
     const r = rows[0];
     return NextResponse.json({
       id: r.id, data: r.created_at, coleta: r.coleta,
       precoCusto: parseFloat(r.preco_custo), prazoEntrega: r.prazo_entrega,
-      repasse: parseFloat(r.repasse), lucro: parseFloat(r.lucro)
+      repasse: parseFloat(r.repasse), lucro: parseFloat(r.lucro),
+      tipo: normalizeLabTipo(r.tipo)
     });
   }
 
@@ -125,6 +133,15 @@ export async function PATCH(request) {
   const sql = getSQL();
   const body = await request.json();
   const { module, id, status } = body;
+
+  if (module === 'lab') {
+    // Corrige o tipo de um pedido já lançado (normal <-> plano)
+    if (!LAB_TIPOS.includes(body.tipo)) {
+      return NextResponse.json({ error: 'Tipo inválido' }, { status: 400 });
+    }
+    await sql`UPDATE lab_records SET tipo = ${body.tipo} WHERE id = ${id}`;
+    return NextResponse.json({ success: true });
+  }
 
   if (module === 'cirurgioes') {
     await sql`UPDATE cirurgioes_records SET status = ${status} WHERE id = ${id}`;

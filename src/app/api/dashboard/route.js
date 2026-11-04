@@ -10,7 +10,12 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const month = searchParams.get('month');
 
-  const labRows = await sql`SELECT COALESCE(SUM(preco_custo), 0) as total FROM lab_records WHERE month_key = ${month}`;
+  // Apenas pedidos normais geram custo para a clínica; pedidos de plano de saúde não são cobrados da clínica
+  const labRows = await sql`
+    SELECT COALESCE(SUM(preco_custo), 0) as total
+    FROM lab_records
+    WHERE month_key = ${month} AND (tipo = 'normal' OR tipo IS NULL)
+  `;
   const cirRows = await sql`SELECT COALESCE(SUM(valor), 0) as total FROM cirurgioes_records WHERE month_key = ${month}`;
   const imgRows = await sql`SELECT COALESCE(SUM(valor), 0) as total FROM imagem_records WHERE month_key = ${month}`;
   const gasRows = await sql`SELECT COALESCE(SUM(valor), 0) as total FROM gastos_records WHERE month_key = ${month}`;

@@ -38,9 +38,14 @@ export async function initDB() {
       id SERIAL PRIMARY KEY,
       nome VARCHAR(200) NOT NULL DEFAULT 'Laboratório 1',
       ativo BOOLEAN NOT NULL DEFAULT true,
-      catalogo JSONB DEFAULT '[]'
+      catalogo JSONB DEFAULT '[]',
+      chave_pix VARCHAR(300) DEFAULT ''
     )
   `;
+
+  try {
+    await db`ALTER TABLE labs ADD COLUMN IF NOT EXISTS chave_pix VARCHAR(300) DEFAULT ''`;
+  } catch (e) { /* column already exists */ }
 
   await db`
     INSERT INTO labs (nome, ativo, catalogo)

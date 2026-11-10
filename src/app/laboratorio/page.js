@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../components/AuthProvider';
 import MonthSelector from '../../components/MonthSelector';
 import Autocomplete from '../../components/Autocomplete';
@@ -7,7 +7,7 @@ import ExcelUploader from '../../components/ExcelUploader';
 import { getMonthKey } from '../../lib/storage';
 import { parseExcelFile, exportCatalogToExcel } from '../../lib/excelParser';
 import Link from 'next/link';
-import { FiTrash2, FiBarChart2, FiPlus, FiInfo, FiRepeat, FiDownload } from 'react-icons/fi';
+import { FiTrash2, FiBarChart2, FiPlus, FiInfo, FiRepeat, FiDownload, FiCopy, FiSave, FiCheck } from 'react-icons/fi';
 
 export default function LaboratorioPage() {
   const { isAuthenticated, loading } = useAuth();
@@ -19,13 +19,23 @@ export default function LaboratorioPage() {
   const [coletaInfos, setColetaInfos] = useState({});
   const [viewTabs, setViewTabs] = useState({});
   const [showExcelExample, setShowExcelExample] = useState(false);
+  const [pixInputs, setPixInputs] = useState({});
+  const [copiedLabId, setCopiedLabId] = useState(null);
+  const [savingPixId, setSavingPixId] = useState(null);
+  const [savedPixId, setSavedPixId] = useState(null);
+  const savingPixRefs = useRef({});
 
   useEffect(() => {
     if (!isAuthenticated) return;
     fetch('/api/labs')
       .then(r => r.json())
       .then(data => {
-        if (data.length > 0) setLabs(data);
+        if (data.length > 0) {
+          setLabs(data);
+          const initialPix = {};
+          data.forEach(l => { initialPix[l.id] = l.chave_pix || ''; });
+          setPixInputs(initialPix);
+        }
       }).catch(() => {});
   }, [isAuthenticated]);
 
@@ -82,6 +92,53 @@ export default function LaboratorioPage() {
     });
   };
 
+  const handleLabPixChange = (labId, value) => {
+    setPixInputs(prev => ({ ...prev, [labId]: value }));
+  };
+
+  const saveLabPix = async (labId, forceShowFeedback = false) => {
+    const lab = labs.find(l => l.id === labId);
+    if (!lab || savingPixRefs.current[labId]) return;
+
+    const valor = (pixInputs[labId] ?? '').trim();
+    const currentSaved = lab.chave_pix || '';
+
+    if (valor === currentSaved) {
+      setPixInputs(prev => ({ ...prev, [labId]: valor }));
+      if (forceShowFeedback) {
+        setSavedPixId(labId);
+        setTimeout(() => setSavedPixId(prev => (prev === labId ? null : prev)), 2000);
+      }
+      return;
+    }
+
+    savingPixRefs.current[labId] = true;
+    setSavingPixId(labId);
+    try {
+      const res = await fetch('/api/labs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'updatePix', id: labId, chave_pix: valor }),
+      });
+      if (res.ok) {
+        setPixInputs(prev => ({ ...prev, [labId]: valor }));
+        setLabs(prev => prev.map(l => (l.id === labId ? { ...l, chave_pix: valor } : l)));
+        setSavedPixId(labId);
+        setTimeout(() => setSavedPixId(prev => (prev === labId ? null : prev)), 2000);
+      }
+    } catch {} finally {
+      savingPixRefs.current[labId] = false;
+      setSavingPixId(prev => (prev === labId ? null : prev));
+    }
+  };
+
+  const copyLabPix = (pix, labId) => {
+    if (!pix) return;
+    navigator.clipboard?.writeText(pix);
+    setCopiedLabId(labId);
+    setTimeout(() => setCopiedLabId(prev => (prev === labId ? null : prev)), 2000);
+  };
+
   const addLab = async () => {
     try {
       const res = await fetch('/api/labs', {
@@ -89,7 +146,8 @@ export default function LaboratorioPage() {
         body: JSON.stringify({ action: 'add', nome: `Laboratório ${labs.length + 1}` }),
       });
       const newLab = await res.json();
-      setLabs([...labs, { ...newLab, catalogo: [] }]);
+      setLabs([...labs, { ...newLab, catalogo: [], chave_pix: newLab.chave_pix || '' }]);
+      setPixInputs(prev => ({ ...prev, [newLab.id]: newLab.chave_pix || '' }));
     } catch {}
   };
 
@@ -201,6 +259,8 @@ export default function LaboratorioPage() {
           const labIndex = labs.findIndex(l => l.id === lab.id);
           const currentTipo = getTipo(lab.id);
           const currentTab = viewTabs[lab.id] || 'todos';
+          const currentPix = pixInputs[lab.id] ?? lab.chave_pix ?? '';
+          const isPixDirty = currentPix.trim() !== (lab.chave_pix || '');
 
           return (
             <div className="maquineta-card" key={lab.id} style={{ display: 'flex', flexDirection: 'column' }}>
@@ -220,6 +280,86 @@ export default function LaboratorioPage() {
               </div>
 
               <div className="maquineta-body" style={{ flex: 1 }}>
+                {/* Chave PIX do Laboratório */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    flexWrap: 'wrap',
+                    marginBottom: '16px',
+                    padding: '10px 12px',
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-sm)'
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    Chave PIX:
+                  </span>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={currentPix}
+                    onChange={(e) => handleLabPixChange(lab.id, e.target.value)}
+                    onBlur={() => saveLabPix(lab.id, false)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        saveLabPix(lab.id, true);
+                      }
+                    }}
+                    placeholder="CNPJ, CPF, e-mail, telefone ou chave aleatória"
+                    style={{ flex: 1, minWidth: '180px', padding: '7px 12px', fontSize: '13px' }}
+                  />
+                  <button
+                    type="button"
+                    className="btn-secondary btn-small"
+                    onClick={() => saveLabPix(lab.id, true)}
+                    disabled={savingPixId === lab.id}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '7px 12px',
+                      borderColor: savedPixId === lab.id ? 'var(--success)' : isPixDirty ? 'var(--primary)' : undefined,
+                      color: savedPixId === lab.id ? 'var(--success)' : isPixDirty ? 'var(--primary-light)' : undefined
+                    }}
+                    title="Salvar chave PIX"
+                  >
+                    {savedPixId === lab.id ? <FiCheck size={13} /> : <FiSave size={13} />}
+                    {savingPixId === lab.id ? 'Salvando...' : savedPixId === lab.id ? 'Salvo!' : 'Salvar'}
+                  </button>
+                  {currentPix.trim() && (
+                    <button
+                      type="button"
+                      className="btn-secondary btn-small"
+                      onClick={() => copyLabPix(currentPix.trim(), lab.id)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        padding: '7px 12px',
+                        color: copiedLabId === lab.id ? 'var(--success)' : undefined,
+                        borderColor: copiedLabId === lab.id ? 'var(--success)' : undefined
+                      }}
+                      title="Copiar chave PIX"
+                    >
+                      <FiCopy size={13} />
+                      {copiedLabId === lab.id ? 'Copiado!' : 'Copiar'}
+                    </button>
+                  )}
+                </div>
+
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '16px' }}>
                   <ExcelUploader onUpload={(file) => handleExcelUpload(file, lab.id)} label="Upload Tabela" />
                   {lab.catalogo?.length > 0 && (
